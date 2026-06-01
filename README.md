@@ -16,11 +16,13 @@ Because the first builds are unsigned, macOS may block the first launch. Open **
 
 ### npm
 
+The npm package is prepared as `@ronnycao/netstats` and will be available after the package is published to npm:
+
 ```bash
 npx @ronnycao/netstats install
 ```
 
-The npm installer downloads the latest GitHub Release DMG and opens it. It does not install anything during `postinstall`.
+The npm installer downloads the matching GitHub Release DMG and opens it. It does not install anything during `postinstall`.
 
 ## Features
 
@@ -86,11 +88,13 @@ NetStats 是一个 macOS 原生菜单栏系统监控工具，用来显示 CPU、
 
 ### npm
 
+`@ronnycao/netstats` npm 包已经准备好，发布到 npm 后可使用：
+
 ```bash
 npx @ronnycao/netstats install
 ```
 
-npm 安装器会下载最新 GitHub Release DMG 并打开它。它不会在 `postinstall` 阶段自动安装软件。
+npm 安装器会下载匹配版本的 GitHub Release DMG 并打开它。它不会在 `postinstall` 阶段自动安装软件。
 
 ## 功能
 
