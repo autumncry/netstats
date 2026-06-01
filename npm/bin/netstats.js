@@ -6,9 +6,11 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 
+const pkg = require("../package.json");
 const owner = "RonnyCao0816";
 const repo = "netstats";
-const apiURL = `https://api.github.com/repos/${owner}/${repo}/releases/latest`;
+const dmgName = `NetStats-${pkg.version}.dmg`;
+const dmgURL = `https://github.com/${owner}/${repo}/releases/download/v${pkg.version}/${dmgName}`;
 
 const command = process.argv[2] || "help";
 
@@ -20,7 +22,6 @@ if (command === "install") {
 } else if (command === "help" || command === "--help" || command === "-h") {
   printHelp();
 } else if (command === "version" || command === "--version" || command === "-v") {
-  const pkg = require("../package.json");
   console.log(pkg.version);
 } else {
   console.error(`netstats: unknown command '${command}'`);
@@ -33,17 +34,9 @@ async function install() {
     throw new Error("NetStats only supports macOS.");
   }
 
-  console.log("Fetching latest NetStats release...");
-  const release = await getJSON(apiURL);
-  const asset = (release.assets || []).find((item) => /^NetStats-\d+\.\d+\.\d+\.dmg$/.test(item.name));
-
-  if (!asset) {
-    throw new Error("No NetStats DMG was found in the latest GitHub Release.");
-  }
-
-  const target = path.join(os.tmpdir(), asset.name);
-  console.log(`Downloading ${asset.name}...`);
-  await download(asset.browser_download_url, target);
+  const target = path.join(os.tmpdir(), dmgName);
+  console.log(`Downloading ${dmgName}...`);
+  await download(dmgURL, target);
 
   console.log(`Opening ${target}`);
   await run("open", [target]);
@@ -61,31 +54,6 @@ Commands:
   version      Print this npm package version
   help         Show this help
 `);
-}
-
-function getJSON(url) {
-  return new Promise((resolve, reject) => {
-    request(url, (response) => {
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        reject(new Error(`GitHub API request failed with status ${response.statusCode}`));
-        response.resume();
-        return;
-      }
-
-      let body = "";
-      response.setEncoding("utf8");
-      response.on("data", (chunk) => {
-        body += chunk;
-      });
-      response.on("end", () => {
-        try {
-          resolve(JSON.parse(body));
-        } catch (error) {
-          reject(new Error(`Could not parse GitHub response: ${error.message}`));
-        }
-      });
-    }).on("error", reject);
-  });
 }
 
 function download(url, target) {
