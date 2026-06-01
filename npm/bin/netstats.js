@@ -47,7 +47,7 @@ function printHelp() {
   console.log(`NetStats npm helper
 
 Usage:
-  npx @ronnycao/netstats install
+  npx @autumncry/netstats install
 
 Commands:
   install      Download and open the latest NetStats DMG
@@ -93,7 +93,7 @@ function request(url, callback) {
     {
       headers: {
         "Accept": "application/vnd.github+json",
-        "User-Agent": "@ronnycao/netstats"
+        "User-Agent": "@autumncry/netstats"
       }
     },
     callback

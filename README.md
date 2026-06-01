@@ -49,10 +49,10 @@
 
 ### npm
 
-`@ronnycao/netstats` npm 包已经准备好，发布到 npm 后可使用：
+`@autumncry/netstats` npm 包已经准备好，发布到 npm 后可使用：
 
 ```bash
-npx @ronnycao/netstats install
+npx @autumncry/netstats install
 ```
 
 npm 安装器会下载匹配版本的 GitHub Release DMG 并打开它。它不会在 `postinstall` 阶段自动安装软件。

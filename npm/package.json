@@ -1,5 +1,5 @@
 {
-  "name": "@ronnycao/netstats",
+  "name": "@autumncry/netstats",
   "version": "1.0.0",
   "description": "Installer helper for NetStats, a native macOS menu bar system monitor.",
   "license": "MIT",

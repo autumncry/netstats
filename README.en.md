@@ -49,10 +49,10 @@ The first public builds are unsigned. macOS may block the first launch. Open **S
 
 ### npm
 
-The npm package is prepared as `@ronnycao/netstats` and will be available after the package is published to npm:
+The npm package is prepared as `@autumncry/netstats` and will be available after the package is published to npm:
 
 ```bash
-npx @ronnycao/netstats install
+npx @autumncry/netstats install
 ```
 
 The npm installer downloads the matching GitHub Release DMG and opens it. It does not install anything during `postinstall`.
