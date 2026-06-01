@@ -13,19 +13,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/RonnyCao0816/netstats/releases"><img alt="Release" src="https://img.shields.io/github/v/release/RonnyCao0816/netstats?label=release"></a>
+  <a href="https://github.com/autumncry/netstats/releases"><img alt="Release" src="https://img.shields.io/github/v/release/autumncry/netstats?label=release"></a>
   <img alt="macOS" src="https://img.shields.io/badge/macOS-14%2B-black?logo=apple">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6.0-orange?logo=swift">
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/RonnyCao0816/netstats"></a>
-  <a href="https://github.com/RonnyCao0816/netstats/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/RonnyCao0816/netstats?style=social"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/autumncry/netstats"></a>
+  <a href="https://github.com/autumncry/netstats/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/autumncry/netstats?style=social"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/RonnyCao0816/netstats/releases/latest"><img src="assets/screenshots/menu-bar.png" width="360" alt="NetStats menu bar"></a>
+  <a href="https://github.com/autumncry/netstats/releases/latest"><img src="assets/screenshots/menu-bar.png" width="360" alt="NetStats menu bar"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/RonnyCao0816/netstats/releases/latest"><img src="assets/screenshots/panel.png" width="430" alt="NetStats detail panel"></a>
+  <a href="https://github.com/autumncry/netstats/releases/latest"><img src="assets/screenshots/panel.png" width="430" alt="NetStats detail panel"></a>
 </p>
 
 ## Contents
@@ -43,7 +43,7 @@
 
 ### DMG
 
-Download the latest `NetStats-*.dmg` from [GitHub Releases](https://github.com/RonnyCao0816/netstats/releases/latest), open it, then drag `NetStats.app` to `/Applications`.
+Download the latest `NetStats-*.dmg` from [GitHub Releases](https://github.com/autumncry/netstats/releases/latest), open it, then drag `NetStats.app` to `/Applications`.
 
 The first public builds are unsigned. macOS may block the first launch. Open **System Settings > Privacy & Security** and allow NetStats, or Control-click the app and choose **Open**.
 
@@ -95,7 +95,7 @@ The npm package source is ready in this repository, but publishing to the npm re
 ## Build from Source
 
 ```bash
-git clone https://github.com/RonnyCao0816/netstats.git
+git clone https://github.com/autumncry/netstats.git
 cd netstats
 swift build -c release
 ```

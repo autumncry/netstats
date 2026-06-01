@@ -4,13 +4,13 @@
   "description": "Installer helper for NetStats, a native macOS menu bar system monitor.",
   "license": "MIT",
   "author": "Ronny Cao",
-  "homepage": "https://github.com/RonnyCao0816/netstats#readme",
+  "homepage": "https://github.com/autumncry/netstats#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RonnyCao0816/netstats.git"
+    "url": "git+https://github.com/autumncry/netstats.git"
   },
   "bugs": {
-    "url": "https://github.com/RonnyCao0816/netstats/issues"
+    "url": "https://github.com/autumncry/netstats/issues"
   },
   "bin": {
     "netstats": "bin/netstats.js"

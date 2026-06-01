@@ -7,7 +7,7 @@ const path = require("node:path");
 const { spawn } = require("node:child_process");
 
 const pkg = require("../package.json");
-const owner = "RonnyCao0816";
+const owner = "autumncry";
 const repo = "netstats";
 const dmgName = `NetStats-${pkg.version}.dmg`;
 const dmgURL = `https://github.com/${owner}/${repo}/releases/download/v${pkg.version}/${dmgName}`;
