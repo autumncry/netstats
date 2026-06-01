@@ -1,0 +1,31 @@
+{
+  "name": "@ronnycao/netstats",
+  "version": "1.0.0",
+  "description": "Installer helper for NetStats, a native macOS menu bar system monitor.",
+  "license": "MIT",
+  "author": "Ronny Cao",
+  "homepage": "https://github.com/RonnyCao0816/netstats#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RonnyCao0816/netstats.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RonnyCao0816/netstats/issues"
+  },
+  "bin": {
+    "netstats": "bin/netstats.js"
+  },
+  "files": [
+    "bin"
+  ],
+  "keywords": [
+    "macos",
+    "menubar",
+    "system-monitor",
+    "netstats",
+    "clash-verge"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
