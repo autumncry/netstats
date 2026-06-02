@@ -13,6 +13,10 @@
 </p>
 
 <p align="center">
+  If NetStats helps, please star the repo so more macOS users can discover it.
+</p>
+
+<p align="center">
   <a href="https://github.com/autumncry/netstats/releases"><img alt="Release" src="https://img.shields.io/github/v/release/autumncry/netstats?label=release"></a>
   <img alt="macOS" src="https://img.shields.io/badge/macOS-14%2B-black?logo=apple">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6.0-orange?logo=swift">
@@ -118,7 +122,7 @@ open dist
 
 Issues and pull requests are welcome. Good areas to improve include more menu bar metrics, code signing and notarization, a Homebrew cask, and more proxy client integrations.
 
-If NetStats helps, please consider starring the project.
+If NetStats helps, please star the repo so more macOS users can discover it.
 
 ## License
 

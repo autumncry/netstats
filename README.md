@@ -13,6 +13,10 @@
 </p>
 
 <p align="center">
+  如果 NetStats 对你有帮助，欢迎点一个 Star，让更多 macOS 用户看到它。
+</p>
+
+<p align="center">
   <a href="https://github.com/autumncry/netstats/releases"><img alt="Release" src="https://img.shields.io/github/v/release/autumncry/netstats?label=release"></a>
   <img alt="macOS" src="https://img.shields.io/badge/macOS-14%2B-black?logo=apple">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6.0-orange?logo=swift">
@@ -118,7 +122,7 @@ open dist
 
 Issue 和 Pull Request 都欢迎。适合贡献的方向包括：更多菜单栏指标、签名与 notarization、Homebrew cask、更多代理客户端状态适配。
 
-如果 NetStats 对你有帮助，欢迎帮忙点一个 Star。
+如果 NetStats 对你有帮助，欢迎点一个 Star，让更多 macOS 用户看到它。
 
 ## 开源协议
 
