@@ -27,6 +27,7 @@
     <meta name="twitter:image:alt" content="NetStats native macOS menu bar monitor">
     <meta name="theme-color" content="#202321">
     <link rel="icon" href="assets/icon/netstats-icon.svg" type="image/svg+xml">
+    <link rel="preload" href="assets/hero-geek-bg.jpg" as="image">
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -63,8 +64,8 @@
         --line: #d9d3c5;
         --dark: #202321;
         --dark-muted: #cbd0c8;
-        --green: #2f8f46;
-        --cyan: #1a7f94;
+        --green: #42d976;
+        --cyan: #38d5ea;
         --orange: #b46b17;
         --radius: 8px;
       }
@@ -108,7 +109,7 @@
         justify-content: space-between;
         padding: 0 28px;
         color: #f5f5ef;
-        background: rgba(31, 35, 33, 0.82);
+        background: rgba(10, 13, 12, 0.76);
         -webkit-backdrop-filter: blur(18px);
         backdrop-filter: blur(18px);
         border-bottom: 1px solid rgba(255, 255, 255, 0.12);
@@ -142,13 +143,15 @@
       .hero {
         position: relative;
         min-height: 88vh;
-        display: grid;
-        align-items: center;
-        padding: 104px 28px 72px;
+        padding: 112px 28px 42px;
         color: #ffffff;
-        background-image: url("assets/screenshots/panel.png");
+        background-image:
+          linear-gradient(90deg, rgba(5, 8, 7, 0.96) 0%, rgba(8, 13, 12, 0.86) 42%, rgba(8, 13, 12, 0.58) 100%),
+          radial-gradient(circle at 18% 28%, rgba(66, 217, 118, 0.18), rgba(66, 217, 118, 0) 34%),
+          radial-gradient(circle at 80% 22%, rgba(56, 213, 234, 0.2), rgba(56, 213, 234, 0) 38%),
+          url("assets/hero-geek-bg.jpg");
         background-size: cover;
-        background-position: center top;
+        background-position: center;
         overflow: hidden;
       }
 
@@ -156,26 +159,51 @@
         content: "";
         position: absolute;
         inset: 0;
-        background: rgba(20, 23, 22, 0.72);
+        background:
+          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+        background-size: 48px 48px;
+        mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.74), transparent 82%);
+        pointer-events: none;
+      }
+
+      .hero::after {
+        content: "";
+        position: absolute;
+        inset: auto 0 0;
+        height: 180px;
+        background: linear-gradient(transparent, #ffffff);
+        pointer-events: none;
       }
 
       .hero-content {
         position: relative;
-        width: min(980px, 100%);
+        z-index: 1;
+        width: min(1180px, 100%);
         margin: 0 auto;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(360px, 0.86fr);
+        gap: 54px;
+        align-items: center;
+      }
+
+      .hero-copy {
+        min-width: 0;
       }
 
       .eyebrow {
         margin: 0 0 18px;
-        color: rgba(255, 255, 255, 0.78);
+        color: var(--green);
         font-size: 15px;
         font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
 
       h1 {
         margin: 0;
-        font-size: 64px;
-        line-height: 1.02;
+        font-size: 72px;
+        line-height: 0.98;
         font-weight: 760;
       }
 
@@ -183,7 +211,7 @@
         max-width: 720px;
         margin: 22px 0 0;
         color: rgba(255, 255, 255, 0.84);
-        font-size: 22px;
+        font-size: 21px;
         line-height: 1.42;
       }
 
@@ -208,28 +236,128 @@
       }
 
       .button.primary {
-        color: #182019;
-        background: #f7f5ed;
+        color: #06100a;
+        background: var(--green);
+        border-color: rgba(111, 255, 158, 0.72);
+        box-shadow: 0 0 28px rgba(66, 217, 118, 0.22);
       }
 
       .button.secondary {
         color: #ffffff;
-        background: rgba(255, 255, 255, 0.11);
+        background: rgba(255, 255, 255, 0.08);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
       }
 
-      .stats-line {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 26px;
-        color: rgba(255, 255, 255, 0.72);
+      .hero-command {
+        display: inline-block;
+        margin-top: 22px;
+        padding: 12px 14px;
+        border: 1px solid rgba(66, 217, 118, 0.28);
+        border-radius: var(--radius);
+        color: rgba(214, 255, 226, 0.88);
+        background: rgba(0, 0, 0, 0.32);
+        font-family: "SF Mono", Menlo, Consolas, monospace;
         font-size: 14px;
       }
 
-      .stats-line span {
-        padding: 7px 10px;
+      .hero-command span {
+        color: var(--green);
+      }
+
+      .hero-visual {
+        position: relative;
+        min-width: 0;
+        min-height: 560px;
+      }
+
+      .visual-glow {
+        position: absolute;
+        inset: 46px 8px 72px;
+        border-radius: 40px;
+        background:
+          radial-gradient(circle at 26% 26%, rgba(66, 217, 118, 0.26), transparent 38%),
+          radial-gradient(circle at 76% 58%, rgba(56, 213, 234, 0.2), transparent 42%);
+        filter: blur(22px);
+      }
+
+      .menu-preview {
+        position: absolute;
+        z-index: 2;
+        top: 40px;
+        left: 0;
+        width: min(430px, 88%);
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        box-shadow: 0 18px 52px rgba(0, 0, 0, 0.48);
+      }
+
+      .panel-preview {
+        position: absolute;
+        z-index: 1;
+        right: 0;
+        top: 86px;
+        width: min(390px, 82%);
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        box-shadow: 0 34px 96px rgba(0, 0, 0, 0.54);
+      }
+
+      .terminal-strip {
+        position: absolute;
+        z-index: 3;
+        left: 44px;
+        right: 18px;
+        bottom: 64px;
+        padding: 14px 16px;
+        border: 1px solid rgba(66, 217, 118, 0.24);
         border-radius: var(--radius);
-        background: rgba(255, 255, 255, 0.1);
+        color: rgba(221, 255, 232, 0.92);
+        background: rgba(2, 9, 6, 0.76);
+        -webkit-backdrop-filter: blur(18px);
+        backdrop-filter: blur(18px);
+        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.42);
+        font-family: "SF Mono", Menlo, Consolas, monospace;
+        font-size: 13px;
+        line-height: 1.7;
+      }
+
+      .terminal-strip strong {
+        color: var(--green);
+        font-weight: 700;
+      }
+
+      .hero-metrics {
+        position: relative;
+        z-index: 1;
+        width: min(1180px, 100%);
+        margin: 30px auto 0;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .metric {
+        min-width: 0;
+        padding: 18px 18px 16px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.07);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+      }
+
+      .metric strong {
+        display: block;
+        color: rgba(255, 255, 255, 0.96);
+        font-size: 18px;
+      }
+
+      .metric span {
+        display: block;
+        margin-top: 6px;
+        color: rgba(255, 255, 255, 0.64);
+        font-size: 13px;
       }
 
       section {
@@ -428,8 +556,37 @@
           font-size: 46px;
         }
 
+        .hero-content {
+          grid-template-columns: 1fr;
+          gap: 28px;
+        }
+
         .lead {
           font-size: 19px;
+        }
+
+        .hero-visual {
+          min-height: 420px;
+        }
+
+        .menu-preview {
+          top: 6px;
+          width: 82%;
+        }
+
+        .panel-preview {
+          top: 44px;
+          width: 74%;
+        }
+
+        .terminal-strip {
+          left: 0;
+          right: 0;
+          bottom: 24px;
+        }
+
+        .hero-metrics {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
         .screenshots,
@@ -455,11 +612,24 @@
 
         .hero {
           min-height: 86vh;
-          padding: 92px 20px 58px;
+          padding: 92px 20px 48px;
         }
 
         .button {
           width: 100%;
+        }
+
+        .hero-command {
+          width: 100%;
+          overflow-wrap: anywhere;
+        }
+
+        .hero-visual {
+          min-height: 360px;
+        }
+
+        .hero-metrics {
+          grid-template-columns: 1fr;
         }
       }
     </style>
@@ -481,20 +651,44 @@
     <main id="top">
       <header class="hero">
         <div class="hero-content">
-          <p class="eyebrow">Native macOS menu bar monitor</p>
-          <h1>NetStats</h1>
-          <p class="lead">Keep CPU, memory, network speed, public IP, geolocation, and Clash Verge Dev status one click away without turning your menu bar into a dashboard.</p>
-          <div class="actions">
-            <a class="button primary" href="#install">Install with Homebrew</a>
-            <a class="button secondary" href="https://github.com/autumncry/netstats/releases/latest">Download DMG</a>
-            <a class="button secondary" href="https://github.com/autumncry/netstats">Star on GitHub</a>
-            <a class="button secondary" href="README.md">中文 README</a>
+          <div class="hero-copy">
+            <p class="eyebrow">Native macOS menu bar monitor</p>
+            <h1>Keep an eye on your Mac's signal.</h1>
+            <p class="lead">NetStats puts CPU, memory, network speed, public IP, geolocation, and Clash Verge Dev status in a compact native menu bar app.</p>
+            <div class="actions">
+              <a class="button primary" href="#install">Install with Homebrew</a>
+              <a class="button secondary" href="https://github.com/autumncry/netstats/releases/latest">Download DMG</a>
+              <a class="button secondary" href="https://github.com/autumncry/netstats">Star on GitHub</a>
+              <a class="button secondary" href="README.md">中文 README</a>
+            </div>
+            <div class="hero-command"><span>$</span> brew install --cask netstats</div>
           </div>
-          <div class="stats-line" aria-label="Highlights">
-            <span>macOS 14+</span>
-            <span>Swift + AppKit + SwiftUI</span>
-            <span>MIT License</span>
-            <span>Local-first metrics</span>
+          <div class="hero-visual" aria-label="NetStats product preview">
+            <div class="visual-glow" aria-hidden="true"></div>
+            <img class="menu-preview" src="assets/screenshots/menu-bar.png" alt="NetStats menu bar showing CPU and memory">
+            <img class="panel-preview" src="assets/screenshots/panel.png" alt="NetStats detail panel">
+            <div class="terminal-strip" aria-hidden="true">
+              <div><strong>netstats</strong> stream --cpu --memory --network</div>
+              <div>proxy=tun:on mode=rule node=active</div>
+            </div>
+          </div>
+        </div>
+        <div class="hero-metrics" aria-label="Project highlights">
+          <div class="metric">
+            <strong>macOS 14+</strong>
+            <span>Native AppKit + SwiftUI app</span>
+          </div>
+          <div class="metric">
+            <strong>Homebrew</strong>
+            <span>Install from autumncry/tap</span>
+          </div>
+          <div class="metric">
+            <strong>Local-first</strong>
+            <span>System metrics stay on your Mac</span>
+          </div>
+          <div class="metric">
+            <strong>Clash aware</strong>
+            <span>Proxy, TUN, mode, node status</span>
           </div>
         </div>
       </header>
