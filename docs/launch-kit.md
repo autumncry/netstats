@@ -6,6 +6,7 @@ This document keeps reusable launch copy and outreach notes for growing NetStats
 
 - Repository: https://github.com/autumncry/netstats
 - Website: https://autumncry.github.io/netstats/
+- Homebrew tap: https://github.com/autumncry/homebrew-tap
 - Latest release: https://github.com/autumncry/netstats/releases/latest
 - Chinese README: https://github.com/autumncry/netstats/blob/main/README.md
 - English README: https://github.com/autumncry/netstats/blob/main/README.en.md
@@ -38,7 +39,7 @@ System metrics, network speed, and Clash Verge Dev status are read and processed
 
 我希望它保持轻量：菜单栏只显示你关心的数据，详情面板里再放完整信息。系统指标、网络速度、代理状态都在本机读取和处理；公网 IP/地理位置查询会请求 `ipinfo.io`。
 
-目前提供 DMG 安装包，项目开源在 GitHub。如果你也需要这样的 macOS 小工具，欢迎试用、提 issue，觉得有用也欢迎点一个 Star：
+目前提供 Homebrew 和 DMG 安装方式，项目开源在 GitHub。如果你也需要这样的 macOS 小工具，欢迎试用、提 issue，觉得有用也欢迎点一个 Star：
 https://github.com/autumncry/netstats
 
 ### English - Reddit / X / Hacker News
@@ -47,7 +48,7 @@ I built NetStats, a native macOS menu bar monitor for CPU, memory, network speed
 
 The goal is to keep the menu bar clean while still making detailed system and network information available in one click. System metrics, network speed, and Clash Verge Dev status are processed locally; public IP/geolocation lookup uses `ipinfo.io`.
 
-DMG builds are available from GitHub Releases. Feedback, issues, and stars are welcome:
+Homebrew and DMG installs are available. Feedback, issues, and stars are welcome:
 https://github.com/autumncry/netstats
 
 ### English - Show HN

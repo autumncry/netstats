@@ -49,6 +49,15 @@
 
 ## Install
 
+### Homebrew
+
+```bash
+brew tap autumncry/tap
+brew install --cask netstats
+```
+
+The Homebrew cask uses the same public GitHub Release DMG. The first public builds are unsigned, so macOS may still block the first launch.
+
 ### DMG
 
 Download the latest `NetStats-*.dmg` from [GitHub Releases](https://github.com/autumncry/netstats/releases/latest), open it, then drag `NetStats.app` to `/Applications`.
@@ -133,7 +142,7 @@ open dist
 
 ## Contributing
 
-Issues and pull requests are welcome. Good areas to improve include more menu bar metrics, code signing and notarization, a Homebrew cask, and more proxy client integrations.
+Issues and pull requests are welcome. Good areas to improve include more menu bar metrics, code signing and notarization, Homebrew tap maintenance, and more proxy client integrations.
 
 If you want to help share the project, the [Launch Kit](docs/launch-kit.md) includes reusable project copy and post drafts.
 

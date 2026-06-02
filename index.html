@@ -313,7 +313,7 @@
 
       .install-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(3, 1fr);
         gap: 18px;
         margin-top: 34px;
       }
@@ -527,9 +527,14 @@
 
       <section class="install" id="install" aria-labelledby="install-title">
         <div class="section-inner">
-          <h2 class="section-title" id="install-title">Install from GitHub Releases.</h2>
+          <h2 class="section-title" id="install-title">Install with Homebrew or GitHub Releases.</h2>
           <p class="section-copy">The first public builds are unsigned. macOS may ask you to allow the app from System Settings after download.</p>
           <div class="install-grid">
+            <div class="install-block">
+              <h3>Homebrew</h3>
+              <p>Install from the NetStats tap using the public GitHub Release DMG.</p>
+              <code>brew tap autumncry/tap<br>brew install --cask netstats</code>
+            </div>
             <div class="install-block">
               <h3>DMG</h3>
               <p>Download the latest release, open the DMG, and drag NetStats.app to Applications.</p>

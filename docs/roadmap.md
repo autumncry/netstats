@@ -5,7 +5,7 @@ This roadmap keeps the project direction visible for users and contributors. It 
 ## Near Term
 
 - Code signing and notarization for smoother first launch.
-- Homebrew Cask install support.
+- Homebrew tap hardening and release automation.
 - Clear public IP and geolocation enable/disable setting.
 - Better empty and unavailable states for Clash Verge Dev.
 - More polished screenshots for GitHub and release pages.
@@ -26,7 +26,7 @@ This roadmap keeps the project direction visible for users and contributors. It 
 ## Distribution
 
 - Signed and notarized DMG.
-- Homebrew Cask.
+- Homebrew tap is available through `brew tap autumncry/tap`.
 - Published npm installer.
 - Automated release workflow after signing is available.
 

@@ -49,6 +49,15 @@
 
 ## 安装
 
+### Homebrew
+
+```bash
+brew tap autumncry/tap
+brew install --cask netstats
+```
+
+当前 Homebrew cask 使用同一个公开 GitHub Release DMG。第一版公开构建未签名，macOS 首次打开时可能仍会拦截。
+
 ### DMG
 
 从 [GitHub Releases](https://github.com/autumncry/netstats/releases/latest) 下载最新的 `NetStats-*.dmg`，打开后将 `NetStats.app` 拖到 `/Applications`。
@@ -133,7 +142,7 @@ open dist
 
 ## 贡献
 
-Issue 和 Pull Request 都欢迎。适合贡献的方向包括：更多菜单栏指标、签名与 notarization、Homebrew cask、更多代理客户端状态适配。
+Issue 和 Pull Request 都欢迎。适合贡献的方向包括：更多菜单栏指标、签名与 notarization、Homebrew tap 维护、更多代理客户端状态适配。
 
 如果你愿意帮忙传播，可以参考 [Launch Kit](docs/launch-kit.md) 里的项目介绍和发帖文案。
 
