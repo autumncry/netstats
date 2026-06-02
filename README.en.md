@@ -136,6 +136,8 @@ open dist
 - [Roadmap](docs/roadmap.md): upcoming features, distribution plans, and design principles
 - [Website](https://autumncry.github.io/netstats/): NetStats project landing page
 - [Changelog](CHANGELOG.md): release notes
+- [Release Notes](docs/release-notes/v1.0.0.md): current release notes
+- [Release Checklist](docs/release-checklist.md): checklist for future releases
 - [Contributing](CONTRIBUTING.md): development setup, PR expectations, and privacy notes
 - [Security](SECURITY.md): security and privacy reporting
 - [Launch Kit](docs/launch-kit.md): reusable project copy and outreach notes
