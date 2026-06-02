@@ -21,6 +21,7 @@
   <img alt="macOS" src="https://img.shields.io/badge/macOS-14%2B-black?logo=apple">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6.0-orange?logo=swift">
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/autumncry/netstats"></a>
+  <a href="https://github.com/autumncry/netstats/issues"><img alt="Issues" src="https://img.shields.io/github/issues/autumncry/netstats"></a>
   <a href="https://github.com/autumncry/netstats/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/autumncry/netstats?style=social"></a>
 </p>
 
@@ -40,6 +41,7 @@
 - [Privacy](#privacy)
 - [FAQ](#faq)
 - [Build from Source](#build-from-source)
+- [Project Docs](#project-docs)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -117,6 +119,14 @@ Build a DMG:
 scripts/package_dmg.sh
 open dist
 ```
+
+## Project Docs
+
+- [Roadmap](docs/roadmap.md): upcoming features, distribution plans, and design principles
+- [Changelog](CHANGELOG.md): release notes
+- [Contributing](CONTRIBUTING.md): development setup, PR expectations, and privacy notes
+- [Security](SECURITY.md): security and privacy reporting
+- [Launch Kit](docs/launch-kit.md): reusable project copy and outreach notes
 
 ## Contributing
 

@@ -21,6 +21,7 @@
   <img alt="macOS" src="https://img.shields.io/badge/macOS-14%2B-black?logo=apple">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6.0-orange?logo=swift">
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/autumncry/netstats"></a>
+  <a href="https://github.com/autumncry/netstats/issues"><img alt="Issues" src="https://img.shields.io/github/issues/autumncry/netstats"></a>
   <a href="https://github.com/autumncry/netstats/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/autumncry/netstats?style=social"></a>
 </p>
 
@@ -40,6 +41,7 @@
 - [隐私](#隐私)
 - [常见问题](#常见问题)
 - [从源码构建](#从源码构建)
+- [项目资料](#项目资料)
 - [贡献](#贡献)
 - [开源协议](#开源协议)
 
@@ -117,6 +119,14 @@ open build/NetStats.app
 scripts/package_dmg.sh
 open dist
 ```
+
+## 项目资料
+
+- [Roadmap](docs/roadmap.md)：后续功能、分发方式和设计原则
+- [Changelog](CHANGELOG.md)：版本更新记录
+- [Contributing](CONTRIBUTING.md)：开发环境、PR 要求和隐私注意事项
+- [Security](SECURITY.md)：安全与隐私问题报告方式
+- [Launch Kit](docs/launch-kit.md)：项目介绍和传播文案
 
 ## 贡献
 
