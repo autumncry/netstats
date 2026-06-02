@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -131,13 +131,46 @@
       .nav-links {
         display: flex;
         align-items: center;
-        gap: 18px;
+        gap: 16px;
         font-size: 14px;
         color: rgba(245, 245, 239, 0.82);
       }
 
       .nav-links a {
         text-decoration: none;
+      }
+
+      .nav-actions {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+
+      .language-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .lang-button {
+        min-height: 30px;
+        padding: 0 10px;
+        border: 0;
+        border-radius: 6px;
+        color: rgba(245, 245, 239, 0.72);
+        background: transparent;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .lang-button.is-active {
+        color: #06100a;
+        background: var(--green);
       }
 
       .hero {
@@ -219,8 +252,15 @@
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 12px;
+        gap: 14px;
         margin-top: 34px;
+      }
+
+      .install-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
       }
 
       .button {
@@ -230,9 +270,11 @@
         min-height: 44px;
         padding: 0 18px;
         border-radius: var(--radius);
+        font: inherit;
         font-weight: 700;
         text-decoration: none;
         border: 1px solid rgba(255, 255, 255, 0.22);
+        cursor: pointer;
       }
 
       .button.primary {
@@ -249,8 +291,24 @@
         backdrop-filter: blur(12px);
       }
 
+      .star-button {
+        width: 46px;
+        min-width: 46px;
+        padding: 0;
+        color: var(--green);
+        background: rgba(66, 217, 118, 0.1);
+        border-color: rgba(66, 217, 118, 0.36);
+        box-shadow: 0 0 24px rgba(66, 217, 118, 0.12);
+      }
+
+      .star-button svg {
+        width: 20px;
+        height: 20px;
+        fill: currentColor;
+      }
+
       .hero-command {
-        display: inline-block;
+        display: none;
         margin-top: 22px;
         padding: 12px 14px;
         border: 1px solid rgba(66, 217, 118, 0.28);
@@ -259,6 +317,11 @@
         background: rgba(0, 0, 0, 0.32);
         font-family: "SF Mono", Menlo, Consolas, monospace;
         font-size: 14px;
+        line-height: 1.7;
+      }
+
+      .hero-command.is-visible {
+        display: inline-block;
       }
 
       .hero-command span {
@@ -284,12 +347,12 @@
       .menu-preview {
         position: absolute;
         z-index: 2;
-        top: 40px;
-        left: 0;
-        width: min(430px, 88%);
+        top: 54px;
+        left: 46px;
+        width: min(196px, 36%);
         border-radius: 8px;
         border: 1px solid rgba(255, 255, 255, 0.16);
-        box-shadow: 0 18px 52px rgba(0, 0, 0, 0.48);
+        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.44);
       }
 
       .panel-preview {
@@ -297,7 +360,7 @@
         z-index: 1;
         right: 0;
         top: 86px;
-        width: min(390px, 82%);
+        width: min(420px, 82%);
         border-radius: 16px;
         border: 1px solid rgba(255, 255, 255, 0.18);
         box-shadow: 0 34px 96px rgba(0, 0, 0, 0.54);
@@ -544,12 +607,11 @@
         }
 
         .nav-links {
-          gap: 12px;
+          gap: 10px;
         }
 
-        .nav-links a:nth-child(2),
-        .nav-links a:nth-child(3) {
-          display: none;
+        .nav-actions {
+          gap: 12px;
         }
 
         h1 {
@@ -570,8 +632,9 @@
         }
 
         .menu-preview {
-          top: 6px;
-          width: 82%;
+          top: 18px;
+          left: 22px;
+          width: 34%;
         }
 
         .panel-preview {
@@ -619,6 +682,19 @@
           width: 100%;
         }
 
+        .install-actions {
+          flex: 1 1 100%;
+        }
+
+        .star-button {
+          width: 52px;
+          min-width: 52px;
+        }
+
+        .nav-links a {
+          display: none;
+        }
+
         .hero-command {
           width: 100%;
           overflow-wrap: anywhere;
@@ -640,11 +716,17 @@
         <img src="assets/icon/netstats-icon.svg" alt="">
         <span>NetStats</span>
       </a>
-      <div class="nav-links">
-        <a href="#features">Features</a>
-        <a href="#privacy">Privacy</a>
-        <a href="#install">Install</a>
-        <a href="https://github.com/autumncry/netstats">GitHub</a>
+      <div class="nav-actions">
+        <div class="nav-links">
+          <a href="#features" data-i18n="nav.features">功能</a>
+          <a href="#privacy" data-i18n="nav.privacy">隐私</a>
+          <a href="#install" data-i18n="nav.install">安装</a>
+          <a href="https://github.com/autumncry/netstats">GitHub</a>
+        </div>
+        <div class="language-switch" aria-label="Language">
+          <button class="lang-button is-active" type="button" data-language="zh">中文</button>
+          <button class="lang-button" type="button" data-language="en">English</button>
+        </div>
       </div>
     </nav>
 
@@ -652,16 +734,21 @@
       <header class="hero">
         <div class="hero-content">
           <div class="hero-copy">
-            <p class="eyebrow">Native macOS menu bar monitor</p>
-            <h1>Keep an eye on your Mac's signal.</h1>
-            <p class="lead">NetStats puts CPU, memory, network speed, public IP, geolocation, and Clash Verge Dev status in a compact native menu bar app.</p>
+            <p class="eyebrow" data-i18n="hero.eyebrow">原生 macOS 菜单栏监控</p>
+            <h1 data-i18n="hero.title">盯住你的 Mac 状态信号。</h1>
+            <p class="lead" data-i18n="hero.lead">NetStats 将 CPU、内存、网络速度、公网 IP、地理位置和 Clash Verge Dev 状态放进一个紧凑的原生菜单栏 App。</p>
             <div class="actions">
-              <a class="button primary" href="#install">Install with Homebrew</a>
-              <a class="button secondary" href="https://github.com/autumncry/netstats/releases/latest">Download DMG</a>
-              <a class="button secondary" href="https://github.com/autumncry/netstats">Star on GitHub</a>
-              <a class="button secondary" href="README.md">中文 README</a>
+              <div class="install-actions" aria-label="Install options">
+                <button class="button primary" id="homebrewButton" type="button" aria-controls="homebrewCommand" aria-expanded="false">Homebrew</button>
+                <a class="button secondary" href="https://github.com/autumncry/netstats/releases/latest" data-i18n="hero.dmg">下载安装包</a>
+              </div>
+              <a class="button star-button" href="https://github.com/autumncry/netstats/stargazers" aria-label="给 NetStats 点 Star" title="给 NetStats 点 Star" data-i18n-aria="hero.starLabel" data-i18n-title="hero.starLabel">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 2.6 14.96 8l6.04 1.16-4.22 4.48.76 6.1L12 17.12 6.46 19.74l.76-6.1L3 9.16 9.04 8 12 2.6Z"></path>
+                </svg>
+              </a>
             </div>
-            <div class="hero-command"><span>$</span> brew install --cask netstats</div>
+            <div class="hero-command" id="homebrewCommand" aria-live="polite"><span>$</span> brew tap autumncry/tap<br><span>$</span> brew install --cask netstats</div>
           </div>
           <div class="hero-visual" aria-label="NetStats product preview">
             <div class="visual-glow" aria-hidden="true"></div>
@@ -676,27 +763,27 @@
         <div class="hero-metrics" aria-label="Project highlights">
           <div class="metric">
             <strong>macOS 14+</strong>
-            <span>Native AppKit + SwiftUI app</span>
+            <span data-i18n="metric.macos">原生 AppKit + SwiftUI App</span>
           </div>
           <div class="metric">
             <strong>Homebrew</strong>
-            <span>Install from autumncry/tap</span>
+            <span data-i18n="metric.homebrew">通过 autumncry/tap 安装</span>
           </div>
           <div class="metric">
-            <strong>Local-first</strong>
-            <span>System metrics stay on your Mac</span>
+            <strong data-i18n="metric.localTitle">本地优先</strong>
+            <span data-i18n="metric.localCopy">系统指标留在你的 Mac 上</span>
           </div>
           <div class="metric">
-            <strong>Clash aware</strong>
-            <span>Proxy, TUN, mode, node status</span>
+            <strong data-i18n="metric.clashTitle">Clash 感知</strong>
+            <span data-i18n="metric.clashCopy">代理、TUN、模式、节点状态</span>
           </div>
         </div>
       </header>
 
       <section class="showcase" aria-labelledby="showcase-title">
         <div class="section-inner">
-          <h2 class="section-title" id="showcase-title">A compact menu bar, with the detail panel when you need it.</h2>
-          <p class="section-copy">NetStats keeps the menu bar focused on the metrics you choose. Click the status item to open a native macOS panel with hardware, memory, network, IP, location, and proxy information.</p>
+          <h2 class="section-title" id="showcase-title" data-i18n="showcase.title">紧凑菜单栏，需要时展开详情面板。</h2>
+          <p class="section-copy" data-i18n="showcase.copy">NetStats 只把你选择的指标放进菜单栏。点击状态项即可打开原生 macOS 面板，查看硬件、内存、网络、IP、位置和代理信息。</p>
           <div class="screenshots">
             <figure class="shot">
               <img src="assets/screenshots/menu-bar.png" alt="NetStats menu bar showing CPU and memory">
@@ -710,32 +797,32 @@
 
       <section class="features" id="features" aria-labelledby="features-title">
         <div class="section-inner">
-          <h2 class="section-title" id="features-title">Built for people who watch both system load and network state.</h2>
-          <p class="section-copy">The app focuses on daily-use signals instead of stuffing every possible metric into the menu bar.</p>
+          <h2 class="section-title" id="features-title" data-i18n="features.title">为同时关注系统负载和网络状态的人设计。</h2>
+          <p class="section-copy" data-i18n="features.copy">NetStats 关注日常真正高频的信号，而不是把所有可能的指标塞进菜单栏。</p>
           <div class="feature-grid">
             <div class="feature">
-              <strong>Hardware overview</strong>
-              <p>CPU, GPU label, memory load, used memory, cached memory, and compressed memory in a sectioned panel.</p>
+              <strong data-i18n="feature.hardwareTitle">硬件概览</strong>
+              <p data-i18n="feature.hardwareCopy">CPU、GPU 标识、内存负载、已用内存、缓存和压缩内存，以分区面板呈现。</p>
             </div>
             <div class="feature">
-              <strong>Network visibility</strong>
-              <p>Upload and download speed, public IPv4, geolocation, and one-click IP copy.</p>
+              <strong data-i18n="feature.networkTitle">网络可见性</strong>
+              <p data-i18n="feature.networkCopy">上传下载速度、公网 IPv4、地理位置，以及一键复制 IP。</p>
             </div>
             <div class="feature">
-              <strong>Clash Verge Dev status</strong>
-              <p>Shows process state, system proxy, TUN, mode, subscription, proxy group, and selected node.</p>
+              <strong data-i18n="feature.clashTitle">Clash Verge Dev 状态</strong>
+              <p data-i18n="feature.clashCopy">显示进程状态、系统代理、TUN、模式、订阅、代理组和当前节点。</p>
             </div>
             <div class="feature">
-              <strong>Configurable menu bar</strong>
-              <p>Choose which metrics deserve always-on status bar space and keep the rest in the detail view.</p>
+              <strong data-i18n="feature.configTitle">可配置菜单栏</strong>
+              <p data-i18n="feature.configCopy">选择哪些指标常驻菜单栏，其余信息保留在详情视图里。</p>
             </div>
             <div class="feature">
-              <strong>Native macOS feel</strong>
-              <p>Built with Swift, AppKit, and SwiftUI for a menu bar app that feels at home on macOS.</p>
+              <strong data-i18n="feature.nativeTitle">原生 macOS 质感</strong>
+              <p data-i18n="feature.nativeCopy">使用 Swift、AppKit 和 SwiftUI 构建，让菜单栏 App 融入 macOS。</p>
             </div>
             <div class="feature">
-              <strong>Chinese and English</strong>
-              <p>Switch the app interface between Chinese and English based on your workflow.</p>
+              <strong data-i18n="feature.languageTitle">中文与英文</strong>
+              <p data-i18n="feature.languageCopy">根据你的工作流在中文和英文界面之间切换。</p>
             </div>
           </div>
         </div>
@@ -743,20 +830,20 @@
 
       <section class="privacy" id="privacy" aria-labelledby="privacy-title">
         <div class="section-inner">
-          <h2 class="section-title" id="privacy-title">Clear privacy boundaries.</h2>
-          <p class="section-copy">NetStats is designed around local system visibility. It avoids project-owned telemetry and documents the one external lookup it uses.</p>
+          <h2 class="section-title" id="privacy-title" data-i18n="privacy.title">清晰的隐私边界。</h2>
+          <p class="section-copy" data-i18n="privacy.copy">NetStats 以本机系统可见性为核心设计，不做项目方遥测，并明确说明唯一的外部查询。</p>
           <div class="privacy-list">
             <div class="privacy-item">
-              <strong>Local metrics</strong>
-              <p>System metrics, network speed, and Clash Verge Dev status are read and processed locally on your Mac.</p>
+              <strong data-i18n="privacy.localTitle">本地指标</strong>
+              <p data-i18n="privacy.localCopy">系统指标、网络速度和 Clash Verge Dev 状态均在你的 Mac 本机读取和处理。</p>
             </div>
             <div class="privacy-item">
-              <strong>No NetStats server</strong>
-              <p>The app does not upload your system or proxy status to any NetStats-owned server.</p>
+              <strong data-i18n="privacy.serverTitle">没有 NetStats 服务器</strong>
+              <p data-i18n="privacy.serverCopy">应用不会把你的系统状态或代理状态上传到任何 NetStats 项目服务器。</p>
             </div>
             <div class="privacy-item">
-              <strong>IP lookup disclosure</strong>
-              <p>Public IP and geolocation lookup uses ipinfo.io to resolve the current public egress address.</p>
+              <strong data-i18n="privacy.ipTitle">公网 IP 查询说明</strong>
+              <p data-i18n="privacy.ipCopy">公网 IP 与地理位置功能会请求 ipinfo.io，用于解析当前公网出口地址。</p>
             </div>
           </div>
         </div>
@@ -764,22 +851,22 @@
 
       <section class="install" id="install" aria-labelledby="install-title">
         <div class="section-inner">
-          <h2 class="section-title" id="install-title">Install with Homebrew or GitHub Releases.</h2>
-          <p class="section-copy">The first public builds are unsigned. macOS may ask you to allow the app from System Settings after download.</p>
+          <h2 class="section-title" id="install-title" data-i18n="install.title">通过 Homebrew 或 GitHub Releases 安装。</h2>
+          <p class="section-copy" data-i18n="install.copy">第一版公开构建未签名。下载后，macOS 可能会要求你在系统设置中允许打开。</p>
           <div class="install-grid">
             <div class="install-block">
               <h3>Homebrew</h3>
-              <p>Install from the NetStats tap using the public GitHub Release DMG.</p>
+              <p data-i18n="install.homebrewCopy">通过 NetStats tap 安装公开 GitHub Release DMG。</p>
               <code>brew tap autumncry/tap<br>brew install --cask netstats</code>
             </div>
             <div class="install-block">
               <h3>DMG</h3>
-              <p>Download the latest release, open the DMG, and drag NetStats.app to Applications.</p>
-              <a class="button primary" href="https://github.com/autumncry/netstats/releases/latest">Get latest release</a>
+              <p data-i18n="install.dmgCopy">下载最新版本，打开 DMG，并将 NetStats.app 拖入 Applications。</p>
+              <a class="button primary" href="https://github.com/autumncry/netstats/releases/latest" data-i18n="install.releaseButton">获取最新版本</a>
             </div>
             <div class="install-block">
-              <h3>Build from source</h3>
-              <p>Clone the repository and build with Swift Package Manager.</p>
+              <h3 data-i18n="install.sourceTitle">从源码构建</h3>
+              <p data-i18n="install.sourceCopy">克隆仓库，并使用 Swift Package Manager 构建。</p>
               <code>git clone https://github.com/autumncry/netstats.git<br>cd netstats<br>swift build -c release</code>
             </div>
           </div>
@@ -789,9 +876,142 @@
 
     <footer class="footer">
       <div class="footer-inner">
-        <span>NetStats is open source under the MIT License.</span>
-        <span><a href="https://github.com/autumncry/netstats">GitHub</a> · <a href="README.md">中文</a> · <a href="README.en.md">English README</a></span>
+        <span data-i18n="footer.license">NetStats 使用 MIT License 开源。</span>
+        <span><a href="https://github.com/autumncry/netstats">GitHub</a> · <a href="https://github.com/autumncry/netstats/blob/main/LICENSE">License</a></span>
       </div>
     </footer>
+    <script>
+      const translations = {
+        zh: {
+          "nav.features": "功能",
+          "nav.privacy": "隐私",
+          "nav.install": "安装",
+          "hero.eyebrow": "原生 macOS 菜单栏监控",
+          "hero.title": "盯住你的 Mac 状态信号。",
+          "hero.lead": "NetStats 将 CPU、内存、网络速度、公网 IP、地理位置和 Clash Verge Dev 状态放进一个紧凑的原生菜单栏 App。",
+          "hero.dmg": "下载安装包",
+          "hero.starLabel": "给 NetStats 点 Star",
+          "metric.macos": "原生 AppKit + SwiftUI App",
+          "metric.homebrew": "通过 autumncry/tap 安装",
+          "metric.localTitle": "本地优先",
+          "metric.localCopy": "系统指标留在你的 Mac 上",
+          "metric.clashTitle": "Clash 感知",
+          "metric.clashCopy": "代理、TUN、模式、节点状态",
+          "showcase.title": "紧凑菜单栏，需要时展开详情面板。",
+          "showcase.copy": "NetStats 只把你选择的指标放进菜单栏。点击状态项即可打开原生 macOS 面板，查看硬件、内存、网络、IP、位置和代理信息。",
+          "features.title": "为同时关注系统负载和网络状态的人设计。",
+          "features.copy": "NetStats 关注日常真正高频的信号，而不是把所有可能的指标塞进菜单栏。",
+          "feature.hardwareTitle": "硬件概览",
+          "feature.hardwareCopy": "CPU、GPU 标识、内存负载、已用内存、缓存和压缩内存，以分区面板呈现。",
+          "feature.networkTitle": "网络可见性",
+          "feature.networkCopy": "上传下载速度、公网 IPv4、地理位置，以及一键复制 IP。",
+          "feature.clashTitle": "Clash Verge Dev 状态",
+          "feature.clashCopy": "显示进程状态、系统代理、TUN、模式、订阅、代理组和当前节点。",
+          "feature.configTitle": "可配置菜单栏",
+          "feature.configCopy": "选择哪些指标常驻菜单栏，其余信息保留在详情视图里。",
+          "feature.nativeTitle": "原生 macOS 质感",
+          "feature.nativeCopy": "使用 Swift、AppKit 和 SwiftUI 构建，让菜单栏 App 融入 macOS。",
+          "feature.languageTitle": "中文与英文",
+          "feature.languageCopy": "根据你的工作流在中文和英文界面之间切换。",
+          "privacy.title": "清晰的隐私边界。",
+          "privacy.copy": "NetStats 以本机系统可见性为核心设计，不做项目方遥测，并明确说明唯一的外部查询。",
+          "privacy.localTitle": "本地指标",
+          "privacy.localCopy": "系统指标、网络速度和 Clash Verge Dev 状态均在你的 Mac 本机读取和处理。",
+          "privacy.serverTitle": "没有 NetStats 服务器",
+          "privacy.serverCopy": "应用不会把你的系统状态或代理状态上传到任何 NetStats 项目服务器。",
+          "privacy.ipTitle": "公网 IP 查询说明",
+          "privacy.ipCopy": "公网 IP 与地理位置功能会请求 ipinfo.io，用于解析当前公网出口地址。",
+          "install.title": "通过 Homebrew 或 GitHub Releases 安装。",
+          "install.copy": "第一版公开构建未签名。下载后，macOS 可能会要求你在系统设置中允许打开。",
+          "install.homebrewCopy": "通过 NetStats tap 安装公开 GitHub Release DMG。",
+          "install.dmgCopy": "下载最新版本，打开 DMG，并将 NetStats.app 拖入 Applications。",
+          "install.releaseButton": "获取最新版本",
+          "install.sourceTitle": "从源码构建",
+          "install.sourceCopy": "克隆仓库，并使用 Swift Package Manager 构建。",
+          "footer.license": "NetStats 使用 MIT License 开源。"
+        },
+        en: {
+          "nav.features": "Features",
+          "nav.privacy": "Privacy",
+          "nav.install": "Install",
+          "hero.eyebrow": "Native macOS menu bar monitor",
+          "hero.title": "Keep an eye on your Mac's signal.",
+          "hero.lead": "NetStats puts CPU, memory, network speed, public IP, geolocation, and Clash Verge Dev status in a compact native menu bar app.",
+          "hero.dmg": "Download DMG",
+          "hero.starLabel": "Star NetStats on GitHub",
+          "metric.macos": "Native AppKit + SwiftUI app",
+          "metric.homebrew": "Install from autumncry/tap",
+          "metric.localTitle": "Local-first",
+          "metric.localCopy": "System metrics stay on your Mac",
+          "metric.clashTitle": "Clash aware",
+          "metric.clashCopy": "Proxy, TUN, mode, node status",
+          "showcase.title": "A compact menu bar, with the detail panel when you need it.",
+          "showcase.copy": "NetStats keeps the menu bar focused on the metrics you choose. Click the status item to open a native macOS panel with hardware, memory, network, IP, location, and proxy information.",
+          "features.title": "Built for people who watch both system load and network state.",
+          "features.copy": "The app focuses on daily-use signals instead of stuffing every possible metric into the menu bar.",
+          "feature.hardwareTitle": "Hardware overview",
+          "feature.hardwareCopy": "CPU, GPU label, memory load, used memory, cached memory, and compressed memory in a sectioned panel.",
+          "feature.networkTitle": "Network visibility",
+          "feature.networkCopy": "Upload and download speed, public IPv4, geolocation, and one-click IP copy.",
+          "feature.clashTitle": "Clash Verge Dev status",
+          "feature.clashCopy": "Shows process state, system proxy, TUN, mode, subscription, proxy group, and selected node.",
+          "feature.configTitle": "Configurable menu bar",
+          "feature.configCopy": "Choose which metrics deserve always-on status bar space and keep the rest in the detail view.",
+          "feature.nativeTitle": "Native macOS feel",
+          "feature.nativeCopy": "Built with Swift, AppKit, and SwiftUI for a menu bar app that feels at home on macOS.",
+          "feature.languageTitle": "Chinese and English",
+          "feature.languageCopy": "Switch the app interface between Chinese and English based on your workflow.",
+          "privacy.title": "Clear privacy boundaries.",
+          "privacy.copy": "NetStats is designed around local system visibility. It avoids project-owned telemetry and documents the one external lookup it uses.",
+          "privacy.localTitle": "Local metrics",
+          "privacy.localCopy": "System metrics, network speed, and Clash Verge Dev status are read and processed locally on your Mac.",
+          "privacy.serverTitle": "No NetStats server",
+          "privacy.serverCopy": "The app does not upload your system or proxy status to any NetStats-owned server.",
+          "privacy.ipTitle": "IP lookup disclosure",
+          "privacy.ipCopy": "Public IP and geolocation lookup uses ipinfo.io to resolve the current public egress address.",
+          "install.title": "Install with Homebrew or GitHub Releases.",
+          "install.copy": "The first public builds are unsigned. macOS may ask you to allow the app from System Settings after download.",
+          "install.homebrewCopy": "Install from the NetStats tap using the public GitHub Release DMG.",
+          "install.dmgCopy": "Download the latest release, open the DMG, and drag NetStats.app to Applications.",
+          "install.releaseButton": "Get latest release",
+          "install.sourceTitle": "Build from source",
+          "install.sourceCopy": "Clone the repository and build with Swift Package Manager.",
+          "footer.license": "NetStats is open source under the MIT License."
+        }
+      };
+
+      const languageButtons = document.querySelectorAll("[data-language]");
+      const homebrewButton = document.getElementById("homebrewButton");
+      const homebrewCommand = document.getElementById("homebrewCommand");
+
+      function setLanguage(language) {
+        const dictionary = translations[language] || translations.zh;
+        document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
+        document.querySelectorAll("[data-i18n]").forEach((element) => {
+          element.textContent = dictionary[element.dataset.i18n];
+        });
+        document.querySelectorAll("[data-i18n-aria]").forEach((element) => {
+          element.setAttribute("aria-label", dictionary[element.dataset.i18nAria]);
+        });
+        document.querySelectorAll("[data-i18n-title]").forEach((element) => {
+          element.setAttribute("title", dictionary[element.dataset.i18nTitle]);
+        });
+        languageButtons.forEach((button) => {
+          button.classList.toggle("is-active", button.dataset.language === language);
+        });
+        localStorage.setItem("netstats-language", language);
+      }
+
+      languageButtons.forEach((button) => {
+        button.addEventListener("click", () => setLanguage(button.dataset.language));
+      });
+
+      homebrewButton.addEventListener("click", () => {
+        const isVisible = homebrewCommand.classList.toggle("is-visible");
+        homebrewButton.setAttribute("aria-expanded", String(isVisible));
+      });
+
+      setLanguage(localStorage.getItem("netstats-language") || "zh");
+    </script>
   </body>
 </html>
