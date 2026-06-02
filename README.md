@@ -122,6 +122,8 @@ open dist
 
 Issue 和 Pull Request 都欢迎。适合贡献的方向包括：更多菜单栏指标、签名与 notarization、Homebrew cask、更多代理客户端状态适配。
 
+如果你愿意帮忙传播，可以参考 [Launch Kit](docs/launch-kit.md) 里的项目介绍和发帖文案。
+
 如果 NetStats 对你有帮助，欢迎点一个 Star，让更多 macOS 用户看到它。
 
 ## 开源协议

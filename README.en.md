@@ -122,6 +122,8 @@ open dist
 
 Issues and pull requests are welcome. Good areas to improve include more menu bar metrics, code signing and notarization, a Homebrew cask, and more proxy client integrations.
 
+If you want to help share the project, the [Launch Kit](docs/launch-kit.md) includes reusable project copy and post drafts.
+
 If NetStats helps, please star the repo so more macOS users can discover it.
 
 ## License
