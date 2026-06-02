@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://autumncry.github.io/netstats/sitemap.xml

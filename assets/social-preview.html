@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="robots" content="noindex">
+    <title>NetStats Social Preview</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+        color: #f7f5ed;
+        background: #202321;
+      }
+
+      .card {
+        position: relative;
+        width: 1200px;
+        height: 630px;
+        padding: 56px 64px;
+        background:
+          linear-gradient(135deg, rgba(47, 143, 70, 0.34), rgba(20, 23, 22, 0) 42%),
+          linear-gradient(110deg, rgba(26, 127, 148, 0.2), rgba(180, 107, 23, 0.16) 70%),
+          #202321;
+      }
+
+      .panel-ghost {
+        position: absolute;
+        top: 44px;
+        right: 62px;
+        width: 388px;
+        height: 560px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 20px;
+        background-image:
+          linear-gradient(rgba(25, 27, 26, 0.42), rgba(25, 27, 26, 0.42)),
+          url("screenshots/panel.png");
+        background-size: cover;
+        background-position: center top;
+        box-shadow: 0 34px 80px rgba(0, 0, 0, 0.42);
+      }
+
+      .content {
+        position: relative;
+        z-index: 1;
+        width: 690px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-bottom: 64px;
+      }
+
+      .brand img {
+        width: 74px;
+        height: 74px;
+      }
+
+      .brand span {
+        font-size: 30px;
+        font-weight: 760;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 78px;
+        line-height: 0.96;
+        letter-spacing: 0;
+      }
+
+      p {
+        margin: 24px 0 0;
+        max-width: 650px;
+        color: rgba(247, 245, 237, 0.82);
+        font-size: 28px;
+        line-height: 1.32;
+      }
+
+      .pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 36px;
+      }
+
+      .pill {
+        padding: 12px 16px;
+        border-radius: 8px;
+        color: rgba(247, 245, 237, 0.88);
+        background: rgba(255, 255, 255, 0.11);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        font-size: 18px;
+        font-weight: 650;
+      }
+
+      .command {
+        display: inline-block;
+        margin-top: 34px;
+        padding: 16px 18px;
+        border-radius: 8px;
+        color: #1f2421;
+        background: #f7f5ed;
+        font-size: 22px;
+        font-weight: 760;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="panel-ghost" aria-hidden="true"></div>
+      <main class="content">
+        <div class="brand">
+          <img src="icon/netstats-icon.svg" alt="">
+          <span>NetStats</span>
+        </div>
+        <h1>Native macOS menu bar monitor</h1>
+        <p>CPU, memory, network speed, public IP, geolocation, and Clash Verge Dev status in one compact app.</p>
+        <div class="pills" aria-hidden="true">
+          <span class="pill">macOS 14+</span>
+          <span class="pill">Swift</span>
+          <span class="pill">Homebrew</span>
+          <span class="pill">Local-first metrics</span>
+        </div>
+        <div class="command">brew install --cask netstats</div>
+      </main>
+    </div>
+  </body>
+</html>

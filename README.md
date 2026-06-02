@@ -138,6 +138,7 @@ open dist
 - [Changelog](CHANGELOG.md)：版本更新记录
 - [Release Notes](docs/release-notes/v1.0.0.md)：当前版本发布说明
 - [Release Checklist](docs/release-checklist.md)：后续版本发布检查清单
+- [Product Growth](docs/product-growth.md)：产品力改进和 SEO 增长计划
 - [Contributing](CONTRIBUTING.md)：开发环境、PR 要求和隐私注意事项
 - [Security](SECURITY.md)：安全与隐私问题报告方式
 - [Launch Kit](docs/launch-kit.md)：项目介绍和传播文案

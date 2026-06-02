@@ -138,6 +138,7 @@ open dist
 - [Changelog](CHANGELOG.md): release notes
 - [Release Notes](docs/release-notes/v1.0.0.md): current release notes
 - [Release Checklist](docs/release-checklist.md): checklist for future releases
+- [Product Growth](docs/product-growth.md): product improvements and SEO growth plan
 - [Contributing](CONTRIBUTING.md): development setup, PR expectations, and privacy notes
 - [Security](SECURITY.md): security and privacy reporting
 - [Launch Kit](docs/launch-kit.md): reusable project copy and outreach notes
