@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NetStats - Native macOS Menu Bar System Monitor</title>
+    <meta name="description" content="NetStats is a native macOS menu bar monitor for CPU, memory, network speed, public IP, geolocation, and Clash Verge Dev status.">
+    <meta property="og:title" content="NetStats">
+    <meta property="og:description" content="A native macOS menu bar monitor for CPU, memory, network speed, public IP, geolocation, and Clash Verge Dev status.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="assets/screenshots/panel.png">
+    <meta name="theme-color" content="#202321">
+    <link rel="icon" href="assets/icon/netstats-icon.svg" type="image/svg+xml">
+    <style>
+      :root {
+        color-scheme: light dark;
+        --ink: #1f2421;
+        --muted: #5e665f;
+        --paper: #f4f1e8;
+        --band: #ffffff;
+        --line: #d9d3c5;
+        --dark: #202321;
+        --dark-muted: #cbd0c8;
+        --green: #2f8f46;
+        --cyan: #1a7f94;
+        --orange: #b46b17;
+        --radius: 8px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+        color: var(--ink);
+        background: var(--paper);
+        letter-spacing: 0;
+      }
+
+      a {
+        color: inherit;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 4px;
+      }
+
+      img {
+        max-width: 100%;
+        display: block;
+      }
+
+      .nav {
+        position: fixed;
+        z-index: 10;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 28px;
+        color: #f5f5ef;
+        background: rgba(31, 35, 33, 0.82);
+        -webkit-backdrop-filter: blur(18px);
+        backdrop-filter: blur(18px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        font-size: 17px;
+      }
+
+      .brand img {
+        width: 30px;
+        height: 30px;
+      }
+
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        font-size: 14px;
+        color: rgba(245, 245, 239, 0.82);
+      }
+
+      .nav-links a {
+        text-decoration: none;
+      }
+
+      .hero {
+        position: relative;
+        min-height: 88vh;
+        display: grid;
+        align-items: center;
+        padding: 104px 28px 72px;
+        color: #ffffff;
+        background-image: url("assets/screenshots/panel.png");
+        background-size: cover;
+        background-position: center top;
+        overflow: hidden;
+      }
+
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(20, 23, 22, 0.72);
+      }
+
+      .hero-content {
+        position: relative;
+        width: min(980px, 100%);
+        margin: 0 auto;
+      }
+
+      .eyebrow {
+        margin: 0 0 18px;
+        color: rgba(255, 255, 255, 0.78);
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 64px;
+        line-height: 1.02;
+        font-weight: 760;
+      }
+
+      .lead {
+        max-width: 720px;
+        margin: 22px 0 0;
+        color: rgba(255, 255, 255, 0.84);
+        font-size: 22px;
+        line-height: 1.42;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        margin-top: 34px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 18px;
+        border-radius: var(--radius);
+        font-weight: 700;
+        text-decoration: none;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+      }
+
+      .button.primary {
+        color: #182019;
+        background: #f7f5ed;
+      }
+
+      .button.secondary {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.11);
+      }
+
+      .stats-line {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 26px;
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 14px;
+      }
+
+      .stats-line span {
+        padding: 7px 10px;
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      section {
+        padding: 72px 28px;
+      }
+
+      .section-inner {
+        width: min(1100px, 100%);
+        margin: 0 auto;
+      }
+
+      .section-title {
+        margin: 0 0 16px;
+        font-size: 34px;
+        line-height: 1.15;
+      }
+
+      .section-copy {
+        max-width: 760px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1.6;
+      }
+
+      .showcase {
+        background: var(--band);
+      }
+
+      .screenshots {
+        display: grid;
+        grid-template-columns: 0.9fr 1.1fr;
+        gap: 28px;
+        align-items: start;
+        margin-top: 36px;
+      }
+
+      .shot {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: #e8e2d5;
+        overflow: hidden;
+        min-width: 0;
+      }
+
+      .shot img {
+        width: 100%;
+        height: auto;
+      }
+
+      .features {
+        background: #f4f1e8;
+      }
+
+      .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin-top: 34px;
+      }
+
+      .feature {
+        min-height: 156px;
+        min-width: 0;
+        padding: 22px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.66);
+      }
+
+      .feature strong {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 17px;
+      }
+
+      .feature p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.55;
+      }
+
+      .privacy {
+        color: #ffffff;
+        background: var(--dark);
+      }
+
+      .privacy .section-copy {
+        color: var(--dark-muted);
+      }
+
+      .privacy-list {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin-top: 30px;
+      }
+
+      .privacy-item {
+        min-width: 0;
+        padding: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      .privacy-item strong {
+        display: block;
+        margin-bottom: 8px;
+      }
+
+      .privacy-item p {
+        margin: 0;
+        color: var(--dark-muted);
+        font-size: 15px;
+        line-height: 1.55;
+      }
+
+      .install {
+        background: var(--band);
+      }
+
+      .install-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        margin-top: 34px;
+      }
+
+      .install-block {
+        min-width: 0;
+        padding: 24px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: #faf8f2;
+      }
+
+      .install-block h3 {
+        margin: 0 0 10px;
+        font-size: 20px;
+      }
+
+      .install-block p {
+        margin: 0 0 18px;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      code {
+        display: block;
+        overflow-x: auto;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+        padding: 12px;
+        border-radius: var(--radius);
+        color: #f5f5ef;
+        background: #202321;
+        font-size: 14px;
+      }
+
+      .footer {
+        padding: 42px 28px;
+        color: rgba(255, 255, 255, 0.72);
+        background: #161817;
+      }
+
+      .footer-inner {
+        width: min(1100px, 100%);
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 20px;
+        justify-content: space-between;
+      }
+
+      .footer a {
+        color: #ffffff;
+      }
+
+      @media (max-width: 860px) {
+        .nav {
+          padding: 0 18px;
+        }
+
+        .nav-links {
+          gap: 12px;
+        }
+
+        .nav-links a:nth-child(2),
+        .nav-links a:nth-child(3) {
+          display: none;
+        }
+
+        h1 {
+          font-size: 46px;
+        }
+
+        .lead {
+          font-size: 19px;
+        }
+
+        .screenshots,
+        .feature-grid,
+        .privacy-list,
+        .install-grid {
+          grid-template-columns: 1fr;
+        }
+
+        section {
+          padding: 56px 20px;
+        }
+      }
+
+      @media (max-width: 520px) {
+        .brand span {
+          display: none;
+        }
+
+        h1 {
+          font-size: 38px;
+        }
+
+        .hero {
+          min-height: 86vh;
+          padding: 92px 20px 58px;
+        }
+
+        .button {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="nav" aria-label="Primary navigation">
+      <a class="brand" href="#top" aria-label="NetStats home">
+        <img src="assets/icon/netstats-icon.svg" alt="">
+        <span>NetStats</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/autumncry/netstats">GitHub</a>
+      </div>
+    </nav>
+
+    <main id="top">
+      <header class="hero">
+        <div class="hero-content">
+          <p class="eyebrow">Native macOS menu bar monitor</p>
+          <h1>NetStats</h1>
+          <p class="lead">Keep CPU, memory, network speed, public IP, geolocation, and Clash Verge Dev status one click away without turning your menu bar into a dashboard.</p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/autumncry/netstats/releases/latest">Download DMG</a>
+            <a class="button secondary" href="https://github.com/autumncry/netstats">Star on GitHub</a>
+            <a class="button secondary" href="README.md">中文 README</a>
+          </div>
+          <div class="stats-line" aria-label="Highlights">
+            <span>macOS 14+</span>
+            <span>Swift + AppKit + SwiftUI</span>
+            <span>MIT License</span>
+            <span>Local-first metrics</span>
+          </div>
+        </div>
+      </header>
+
+      <section class="showcase" aria-labelledby="showcase-title">
+        <div class="section-inner">
+          <h2 class="section-title" id="showcase-title">A compact menu bar, with the detail panel when you need it.</h2>
+          <p class="section-copy">NetStats keeps the menu bar focused on the metrics you choose. Click the status item to open a native macOS panel with hardware, memory, network, IP, location, and proxy information.</p>
+          <div class="screenshots">
+            <figure class="shot">
+              <img src="assets/screenshots/menu-bar.png" alt="NetStats menu bar showing CPU and memory">
+            </figure>
+            <figure class="shot">
+              <img src="assets/screenshots/panel.png" alt="NetStats detail panel">
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="features" id="features" aria-labelledby="features-title">
+        <div class="section-inner">
+          <h2 class="section-title" id="features-title">Built for people who watch both system load and network state.</h2>
+          <p class="section-copy">The app focuses on daily-use signals instead of stuffing every possible metric into the menu bar.</p>
+          <div class="feature-grid">
+            <div class="feature">
+              <strong>Hardware overview</strong>
+              <p>CPU, GPU label, memory load, used memory, cached memory, and compressed memory in a sectioned panel.</p>
+            </div>
+            <div class="feature">
+              <strong>Network visibility</strong>
+              <p>Upload and download speed, public IPv4, geolocation, and one-click IP copy.</p>
+            </div>
+            <div class="feature">
+              <strong>Clash Verge Dev status</strong>
+              <p>Shows process state, system proxy, TUN, mode, subscription, proxy group, and selected node.</p>
+            </div>
+            <div class="feature">
+              <strong>Configurable menu bar</strong>
+              <p>Choose which metrics deserve always-on status bar space and keep the rest in the detail view.</p>
+            </div>
+            <div class="feature">
+              <strong>Native macOS feel</strong>
+              <p>Built with Swift, AppKit, and SwiftUI for a menu bar app that feels at home on macOS.</p>
+            </div>
+            <div class="feature">
+              <strong>Chinese and English</strong>
+              <p>Switch the app interface between Chinese and English based on your workflow.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="privacy" id="privacy" aria-labelledby="privacy-title">
+        <div class="section-inner">
+          <h2 class="section-title" id="privacy-title">Clear privacy boundaries.</h2>
+          <p class="section-copy">NetStats is designed around local system visibility. It avoids project-owned telemetry and documents the one external lookup it uses.</p>
+          <div class="privacy-list">
+            <div class="privacy-item">
+              <strong>Local metrics</strong>
+              <p>System metrics, network speed, and Clash Verge Dev status are read and processed locally on your Mac.</p>
+            </div>
+            <div class="privacy-item">
+              <strong>No NetStats server</strong>
+              <p>The app does not upload your system or proxy status to any NetStats-owned server.</p>
+            </div>
+            <div class="privacy-item">
+              <strong>IP lookup disclosure</strong>
+              <p>Public IP and geolocation lookup uses ipinfo.io to resolve the current public egress address.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="install" id="install" aria-labelledby="install-title">
+        <div class="section-inner">
+          <h2 class="section-title" id="install-title">Install from GitHub Releases.</h2>
+          <p class="section-copy">The first public builds are unsigned. macOS may ask you to allow the app from System Settings after download.</p>
+          <div class="install-grid">
+            <div class="install-block">
+              <h3>DMG</h3>
+              <p>Download the latest release, open the DMG, and drag NetStats.app to Applications.</p>
+              <a class="button primary" href="https://github.com/autumncry/netstats/releases/latest">Get latest release</a>
+            </div>
+            <div class="install-block">
+              <h3>Build from source</h3>
+              <p>Clone the repository and build with Swift Package Manager.</p>
+              <code>git clone https://github.com/autumncry/netstats.git<br>cd netstats<br>swift build -c release</code>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <span>NetStats is open source under the MIT License.</span>
+        <span><a href="https://github.com/autumncry/netstats">GitHub</a> · <a href="README.md">中文</a> · <a href="README.en.md">English README</a></span>
+      </div>
+    </footer>
+  </body>
+</html>

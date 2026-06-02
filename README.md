@@ -18,6 +18,7 @@
 
 <p align="center">
   <a href="https://github.com/autumncry/netstats/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/autumncry/netstats/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://autumncry.github.io/netstats/"><img alt="Website" src="https://img.shields.io/badge/website-netstats-2f8f46"></a>
   <a href="https://github.com/autumncry/netstats/releases"><img alt="Release" src="https://img.shields.io/github/v/release/autumncry/netstats?label=release"></a>
   <img alt="macOS" src="https://img.shields.io/badge/macOS-14%2B-black?logo=apple">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6.0-orange?logo=swift">
@@ -124,6 +125,7 @@ open dist
 ## 项目资料
 
 - [Roadmap](docs/roadmap.md)：后续功能、分发方式和设计原则
+- [Website](https://autumncry.github.io/netstats/)：NetStats 项目落地页
 - [Changelog](CHANGELOG.md)：版本更新记录
 - [Contributing](CONTRIBUTING.md)：开发环境、PR 要求和隐私注意事项
 - [Security](SECURITY.md)：安全与隐私问题报告方式

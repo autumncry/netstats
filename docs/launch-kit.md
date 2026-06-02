@@ -5,6 +5,7 @@ This document keeps reusable launch copy and outreach notes for growing NetStats
 ## Links
 
 - Repository: https://github.com/autumncry/netstats
+- Website: https://autumncry.github.io/netstats/
 - Latest release: https://github.com/autumncry/netstats/releases/latest
 - Chinese README: https://github.com/autumncry/netstats/blob/main/README.md
 - English README: https://github.com/autumncry/netstats/blob/main/README.en.md

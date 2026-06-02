@@ -18,6 +18,7 @@
 
 <p align="center">
   <a href="https://github.com/autumncry/netstats/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/autumncry/netstats/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://autumncry.github.io/netstats/"><img alt="Website" src="https://img.shields.io/badge/website-netstats-2f8f46"></a>
   <a href="https://github.com/autumncry/netstats/releases"><img alt="Release" src="https://img.shields.io/github/v/release/autumncry/netstats?label=release"></a>
   <img alt="macOS" src="https://img.shields.io/badge/macOS-14%2B-black?logo=apple">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6.0-orange?logo=swift">
@@ -124,6 +125,7 @@ open dist
 ## Project Docs
 
 - [Roadmap](docs/roadmap.md): upcoming features, distribution plans, and design principles
+- [Website](https://autumncry.github.io/netstats/): NetStats project landing page
 - [Changelog](CHANGELOG.md): release notes
 - [Contributing](CONTRIBUTING.md): development setup, PR expectations, and privacy notes
 - [Security](SECURITY.md): security and privacy reporting
