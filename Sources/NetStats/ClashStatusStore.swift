@@ -5,6 +5,7 @@ struct ClashStatus: Equatable, Sendable {
     var isRunning: Bool
     var controllerAvailable: Bool
     var systemProxyEnabled: Bool
+    var proxyAutoConfigEnabled: Bool
     var tunEnabled: Bool
     var tunDevice: String?
     var mode: String?
@@ -19,6 +20,7 @@ struct ClashStatus: Equatable, Sendable {
         isRunning: false,
         controllerAvailable: false,
         systemProxyEnabled: false,
+        proxyAutoConfigEnabled: false,
         tunEnabled: false,
         tunDevice: nil,
         mode: nil,
@@ -34,6 +36,8 @@ struct ClashStatus: Equatable, Sendable {
 @MainActor
 final class ClashStatusStore: ObservableObject {
     @Published private(set) var status = ClashStatus.empty
+    @Published private(set) var pendingAction: ClashControlAction?
+    @Published private(set) var controlErrorMessage: String?
 
     private var timer: Timer?
     private var isRefreshing = false
@@ -71,12 +75,55 @@ final class ClashStatusStore: ObservableObject {
         }
     }
 
+    func setSystemProxyEnabled(_ enabled: Bool) {
+        performControl(.systemProxy) {
+            try Self.applySystemProxy(enabled)
+        }
+    }
+
+    func setTunEnabled(_ enabled: Bool) {
+        performControl(.tun) {
+            try Self.applyTun(enabled)
+        }
+    }
+
+    func setMode(_ mode: ClashMode) {
+        performControl(.mode) {
+            try Self.applyMode(mode)
+        }
+    }
+
+    private func performControl(_ action: ClashControlAction, operation: @escaping @Sendable () throws -> Void) {
+        guard pendingAction == nil else {
+            return
+        }
+
+        pendingAction = action
+        controlErrorMessage = nil
+
+        DispatchQueue.global(qos: .utility).async {
+            let errorMessage: String?
+            do {
+                try operation()
+                errorMessage = nil
+            } catch {
+                errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            }
+
+            let status = Self.fetchStatus()
+            DispatchQueue.main.async {
+                self.status = status
+                self.controlErrorMessage = errorMessage
+                self.pendingAction = nil
+            }
+        }
+    }
+
     nonisolated private static func fetchStatus() -> ClashStatus {
-        let appSupport = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/io.github.clash-verge-rev.clash-verge-rev")
-        let vergeConfig = readText(appSupport.appendingPathComponent("verge.yaml"))
-        let generatedConfig = readText(appSupport.appendingPathComponent("clash-verge.yaml"))
-        let profilesConfig = readText(appSupport.appendingPathComponent("profiles.yaml"))
+        let files = clashConfigFiles()
+        let vergeConfig = readText(files.verge)
+        let generatedConfig = readText(files.generated)
+        let profilesConfig = readText(files.profiles)
         let selectedProfile = parseSelectedProfile(from: profilesConfig)
 
         let isRunning = processExists(pattern: "clash-verge|Clash Verge|verge-mihomo|mihomo")
@@ -92,6 +139,7 @@ final class ClashStatusStore: ObservableObject {
         let mixedPort = apiConfig?.mixedPort
             ?? parseIntValue("mixed-port", from: generatedConfig)
             ?? parseIntValue("verge_mixed_port", from: vergeConfig)
+        let proxyAutoConfigEnabled = parseBoolValue("proxy_auto_config", from: vergeConfig) ?? false
         let systemProxyEnabled = readSystemProxyEnabled(expectedPort: mixedPort)
             ?? parseBoolValue("enable_system_proxy", from: vergeConfig)
             ?? false
@@ -108,6 +156,7 @@ final class ClashStatusStore: ObservableObject {
             isRunning: isRunning,
             controllerAvailable: apiConfig != nil,
             systemProxyEnabled: systemProxyEnabled,
+            proxyAutoConfigEnabled: proxyAutoConfigEnabled,
             tunEnabled: tunEnabled,
             tunDevice: apiConfig?.tunDevice,
             mode: apiConfig?.mode ?? parseStringValue("mode", from: generatedConfig),
@@ -118,6 +167,96 @@ final class ClashStatusStore: ObservableObject {
             errorMessage: errorMessage,
             updatedAt: Date()
         )
+    }
+
+    nonisolated private static func applySystemProxy(_ enabled: Bool) throws {
+        let files = clashConfigFiles()
+        guard processExists(pattern: "clash-verge|Clash Verge|verge-mihomo|mihomo") else {
+            throw ClashControlError.notRunning
+        }
+
+        let vergeConfig = readText(files.verge)
+        let generatedConfig = readText(files.generated)
+        let host = parseStringValue("proxy_host", from: vergeConfig) ?? "127.0.0.1"
+        let mixedPort = parseIntValue("mixed-port", from: generatedConfig)
+            ?? parseIntValue("verge_mixed_port", from: vergeConfig)
+        let usePAC = parseBoolValue("proxy_auto_config", from: vergeConfig) ?? false
+
+        if enabled && !usePAC && mixedPort == nil {
+            throw ClashControlError.missingMixedPort
+        }
+
+        let services = try activeNetworkServices()
+        guard !services.isEmpty else {
+            throw ClashControlError.noNetworkServices
+        }
+
+        for service in services {
+            if enabled {
+                if usePAC {
+                    let pacURL = "http://\(host):33331/commands/pac"
+                    try runRequired("/usr/sbin/networksetup", arguments: ["-setautoproxyurl", service, pacURL])
+                    try runRequired("/usr/sbin/networksetup", arguments: ["-setautoproxystate", service, "on"])
+                } else {
+                    guard let mixedPort else {
+                        throw ClashControlError.missingMixedPort
+                    }
+                    let port = String(mixedPort)
+                    try runRequired("/usr/sbin/networksetup", arguments: ["-setwebproxy", service, host, port])
+                    try runRequired("/usr/sbin/networksetup", arguments: ["-setsecurewebproxy", service, host, port])
+                    try runRequired("/usr/sbin/networksetup", arguments: ["-setsocksfirewallproxy", service, host, port])
+                    try runRequired("/usr/sbin/networksetup", arguments: ["-setwebproxystate", service, "on"])
+                    try runRequired("/usr/sbin/networksetup", arguments: ["-setsecurewebproxystate", service, "on"])
+                    try runRequired("/usr/sbin/networksetup", arguments: ["-setsocksfirewallproxystate", service, "on"])
+                }
+            } else {
+                try runRequired("/usr/sbin/networksetup", arguments: ["-setwebproxystate", service, "off"])
+                try runRequired("/usr/sbin/networksetup", arguments: ["-setsecurewebproxystate", service, "off"])
+                try runRequired("/usr/sbin/networksetup", arguments: ["-setsocksfirewallproxystate", service, "off"])
+                try runRequired("/usr/sbin/networksetup", arguments: ["-setautoproxystate", service, "off"])
+            }
+        }
+
+        try updateConfigFile(files.verge) {
+            ClashConfigTextEditor.setTopLevelScalar("enable_system_proxy", to: enabled ? "true" : "false", in: $0)
+        }
+    }
+
+    nonisolated private static func applyTun(_ enabled: Bool) throws {
+        let files = clashConfigFiles()
+        let context = try controllerContext(files: files)
+        try patchClashAPIConfig(
+            unixSocket: context.unixSocket,
+            secret: context.secret,
+            payload: #"{"tun":{"enable":\#(enabled ? "true" : "false")}}"#
+        )
+
+        try updateConfigFile(files.verge) {
+            ClashConfigTextEditor.setTopLevelScalar("enable_tun_mode", to: enabled ? "true" : "false", in: $0)
+        }
+        try updateConfigFile(files.base) {
+            ClashConfigTextEditor.setNestedBool("enable", to: enabled, inBlock: "tun", text: $0)
+        }
+        try updateConfigFile(files.generated) {
+            ClashConfigTextEditor.setNestedBool("enable", to: enabled, inBlock: "tun", text: $0)
+        }
+    }
+
+    nonisolated private static func applyMode(_ mode: ClashMode) throws {
+        let files = clashConfigFiles()
+        let context = try controllerContext(files: files)
+        try patchClashAPIConfig(
+            unixSocket: context.unixSocket,
+            secret: context.secret,
+            payload: #"{"mode":"\#(mode.rawValue)"}"#
+        )
+
+        try updateConfigFile(files.base) {
+            ClashConfigTextEditor.setTopLevelScalar("mode", to: mode.rawValue, in: $0)
+        }
+        try updateConfigFile(files.generated) {
+            ClashConfigTextEditor.setTopLevelScalar("mode", to: mode.rawValue, in: $0)
+        }
     }
 
     nonisolated private static func fetchClashAPIConfig(unixSocket: String, secret: String) -> ClashAPIConfig? {
@@ -145,26 +284,28 @@ final class ClashStatusStore: ObservableObject {
         )
     }
 
+    nonisolated private static func patchClashAPIConfig(unixSocket: String, secret: String, payload: String) throws {
+        try runRequired(
+            "/usr/bin/curl",
+            arguments: [
+                "--unix-socket", unixSocket,
+                "-sS",
+                "--max-time", "2",
+                "-X", "PATCH",
+                "-H", "Authorization: Bearer \(secret)",
+                "-H", "Content-Type: application/json",
+                "-d", payload,
+                "http://localhost/configs"
+            ]
+        )
+    }
+
     nonisolated private static func readSystemProxyEnabled(expectedPort: Int?) -> Bool? {
         guard let output = run("/usr/sbin/scutil", arguments: ["--proxy"]) else {
             return nil
         }
 
-        let httpEnabled = parseScutilInt("HTTPEnable", from: output) == 1
-        let httpsEnabled = parseScutilInt("HTTPSEnable", from: output) == 1
-        let socksEnabled = parseScutilInt("SOCKSEnable", from: output) == 1
-        let enabled = httpEnabled || httpsEnabled || socksEnabled
-
-        guard let expectedPort, enabled else {
-            return enabled
-        }
-
-        let ports = [
-            parseScutilInt("HTTPPort", from: output),
-            parseScutilInt("HTTPSPort", from: output),
-            parseScutilInt("SOCKSPort", from: output)
-        ]
-        return ports.contains(expectedPort)
+        return ClashSystemProxyParser.isEnabled(scutilOutput: output, expectedPort: expectedPort)
     }
 
     nonisolated private static func parseSelectedProfile(from text: String?) -> SelectedProfile {
@@ -284,17 +425,6 @@ final class ClashStatusStore: ObservableObject {
         return nil
     }
 
-    nonisolated private static func parseScutilInt(_ key: String, from text: String) -> Int? {
-        let pattern = "\(key) : "
-        for line in text.components(separatedBy: .newlines) {
-            guard let range = line.range(of: pattern) else {
-                continue
-            }
-            return Int(line[range.upperBound...].trimmingCharacters(in: .whitespaces))
-        }
-        return nil
-    }
-
     nonisolated private static func cleanYAMLValue(_ rawValue: String) -> String {
         var value = rawValue.trimmingCharacters(in: .whitespaces)
         if value == "null" {
@@ -310,6 +440,46 @@ final class ClashStatusStore: ObservableObject {
 
     nonisolated private static func readText(_ url: URL) -> String? {
         try? String(contentsOf: url, encoding: .utf8)
+    }
+
+    nonisolated private static func updateConfigFile(_ url: URL, transform: (String) -> String) throws {
+        guard let text = readText(url) else {
+            throw ClashControlError.configReadFailed(url.lastPathComponent)
+        }
+
+        do {
+            try transform(text).write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            throw ClashControlError.configWriteFailed(url.lastPathComponent)
+        }
+    }
+
+    nonisolated private static func activeNetworkServices() throws -> [String] {
+        guard let output = run("/usr/sbin/networksetup", arguments: ["-listallnetworkservices"]) else {
+            throw ClashControlError.commandFailed("networksetup -listallnetworkservices")
+        }
+
+        return output
+            .components(separatedBy: .newlines)
+            .dropFirst()
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && !$0.hasPrefix("*") }
+    }
+
+    nonisolated private static func controllerContext(files: ClashConfigFiles) throws -> ClashControllerContext {
+        guard processExists(pattern: "clash-verge|Clash Verge|verge-mihomo|mihomo") else {
+            throw ClashControlError.notRunning
+        }
+
+        let generatedConfig = readText(files.generated)
+        let unixSocket = parseStringValue("external-controller-unix", from: generatedConfig)
+            ?? "/tmp/verge/verge-mihomo.sock"
+        guard FileManager.default.fileExists(atPath: unixSocket) else {
+            throw ClashControlError.controllerUnavailable
+        }
+
+        let secret = parseStringValue("secret", from: generatedConfig) ?? "set-your-secret"
+        return ClashControllerContext(unixSocket: unixSocket, secret: secret)
     }
 
     nonisolated private static func processExists(pattern: String) -> Bool {
@@ -353,6 +523,66 @@ final class ClashStatusStore: ObservableObject {
         let data = output.fileHandleForReading.readDataToEndOfFile()
         return String(data: data, encoding: .utf8)
     }
+
+    nonisolated private static func runRequired(_ executable: String, arguments: [String]) throws {
+        guard run(executable, arguments: arguments) != nil else {
+            throw ClashControlError.commandFailed(([executable] + arguments).joined(separator: " "))
+        }
+    }
+
+    nonisolated private static func clashConfigFiles() -> ClashConfigFiles {
+        let appSupport = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/io.github.clash-verge-rev.clash-verge-rev")
+        return ClashConfigFiles(
+            appSupport: appSupport,
+            verge: appSupport.appendingPathComponent("verge.yaml"),
+            base: appSupport.appendingPathComponent("config.yaml"),
+            generated: appSupport.appendingPathComponent("clash-verge.yaml"),
+            profiles: appSupport.appendingPathComponent("profiles.yaml")
+        )
+    }
+}
+
+private enum ClashControlError: LocalizedError {
+    case notRunning
+    case controllerUnavailable
+    case missingMixedPort
+    case noNetworkServices
+    case configReadFailed(String)
+    case configWriteFailed(String)
+    case commandFailed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .notRunning:
+            return "Clash Verge Dev is not running."
+        case .controllerUnavailable:
+            return "Mihomo controller is unavailable."
+        case .missingMixedPort:
+            return "Mixed proxy port is unavailable."
+        case .noNetworkServices:
+            return "No active network services found."
+        case .configReadFailed(let file):
+            return "Could not read \(file)."
+        case .configWriteFailed(let file):
+            return "Could not write \(file)."
+        case .commandFailed(let command):
+            return "Command failed: \(command)"
+        }
+    }
+}
+
+private struct ClashConfigFiles: Sendable {
+    let appSupport: URL
+    let verge: URL
+    let base: URL
+    let generated: URL
+    let profiles: URL
+}
+
+private struct ClashControllerContext: Sendable {
+    let unixSocket: String
+    let secret: String
 }
 
 private struct ClashAPIConfig: Sendable {

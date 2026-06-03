@@ -8,11 +8,21 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "NetStats", targets: ["NetStats"])
+        .executable(name: "NetStats", targets: ["NetStatsApp"])
     ],
     targets: [
+        .target(
+            name: "NetStatsCore",
+            path: "Sources/NetStats"
+        ),
         .executableTarget(
-            name: "NetStats"
+            name: "NetStatsApp",
+            dependencies: ["NetStatsCore"]
+        ),
+        .executableTarget(
+            name: "NetStatsLogicTests",
+            dependencies: ["NetStatsCore"],
+            path: "Tests/NetStatsLogicTests"
         )
     ]
 )

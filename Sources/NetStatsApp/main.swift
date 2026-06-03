@@ -1,4 +1,5 @@
 import AppKit
+import NetStatsCore
 
 @MainActor
 private func runApplication() {

@@ -215,6 +215,7 @@ enum LocalizedCopy {
         case location
         case memoryLoad
         case metric
+        case mixedPortUnavailable
         case network
         case publicIP
         case publicIPLocation
@@ -263,6 +264,7 @@ enum LocalizedCopy {
         .location: "Location",
         .memoryLoad: "Memory Load",
         .metric: "Metric",
+        .mixedPortUnavailable: "Mixed port unavailable",
         .network: "Network",
         .publicIP: "Public IP",
         .publicIPLocation: "Public IP location",
@@ -311,6 +313,7 @@ enum LocalizedCopy {
         .location: "地理位置",
         .memoryLoad: "内存负载",
         .metric: "指标",
+        .mixedPortUnavailable: "混合端口不可用",
         .network: "网络信息",
         .publicIP: "公网 IP",
         .publicIPLocation: "公网 IP 地理位置",

@@ -33,91 +33,100 @@ struct MonitorPopoverView: View {
     }
 
     private func monitorPage(_ snapshot: SystemSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            header(
-                title: text(.systemMonitor),
-                subtitle: Text(snapshot.timestamp, style: .time),
-                buttonImage: "gearshape",
-                buttonAction: { page = .settings }
-            )
-            Divider()
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                header(
+                    title: text(.systemMonitor),
+                    subtitle: Text(snapshot.timestamp, style: .time),
+                    buttonImage: "gearshape",
+                    buttonAction: { page = .settings }
+                )
+                Divider()
 
-            SectionHeader(title: text(.hardware), systemImage: "desktopcomputer")
+                SectionHeader(title: text(.hardware), systemImage: "desktopcomputer")
 
-            MetricGauge(
-                title: "CPU",
-                systemImage: "cpu",
-                value: snapshot.cpuUsage,
-                valueText: percent(snapshot.cpuUsage),
-                tint: .blue
-            )
+                MetricGauge(
+                    title: "CPU",
+                    systemImage: "cpu",
+                    value: snapshot.cpuUsage,
+                    valueText: percent(snapshot.cpuUsage),
+                    tint: .blue
+                )
 
-            CompactValueRow(
-                title: text(.gpu),
-                systemImage: "display",
-                value: gpuName
-            )
+                CompactValueRow(
+                    title: text(.gpu),
+                    systemImage: "display",
+                    value: gpuName
+                )
 
-            MetricGauge(
-                title: text(.memoryLoad),
-                systemImage: "memorychip",
-                value: snapshot.memory.pressure,
-                valueText: percent(snapshot.memory.pressure),
-                tint: .green,
-                accessory: {
-                    Button(action: openActivityMonitor) {
-                        Image(systemName: "arrow.up.forward.app")
-                            .font(.system(size: 13, weight: .semibold))
+                MetricGauge(
+                    title: text(.memoryLoad),
+                    systemImage: "memorychip",
+                    value: snapshot.memory.pressure,
+                    valueText: percent(snapshot.memory.pressure),
+                    tint: .green,
+                    accessory: {
+                        Button(action: openActivityMonitor) {
+                            Image(systemName: "arrow.up.forward.app")
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .buttonStyle(.borderless)
+                        .help(text(.activityMonitor))
                     }
-                    .buttonStyle(.borderless)
-                    .help(text(.activityMonitor))
-                }
-            )
+                )
 
-            CompactValueRow(
-                title: text(.used),
-                systemImage: "chart.pie",
-                value: "\(ByteFormatter.memory(snapshot.memory.usedBytes)) / \(ByteFormatter.memory(snapshot.memory.totalBytes))"
-            )
+                CompactValueRow(
+                    title: text(.used),
+                    systemImage: "chart.pie",
+                    value: "\(ByteFormatter.memory(snapshot.memory.usedBytes)) / \(ByteFormatter.memory(snapshot.memory.totalBytes))"
+                )
 
-            CompactValueRow(
-                title: text(.cached),
-                systemImage: "externaldrive",
-                value: ByteFormatter.memory(snapshot.memory.cachedBytes)
-            )
+                CompactValueRow(
+                    title: text(.cached),
+                    systemImage: "externaldrive",
+                    value: ByteFormatter.memory(snapshot.memory.cachedBytes)
+                )
 
-            CompactValueRow(
-                title: text(.compressed),
-                systemImage: "archivebox",
-                value: ByteFormatter.memory(snapshot.memory.compressedBytes)
-            )
+                CompactValueRow(
+                    title: text(.compressed),
+                    systemImage: "archivebox",
+                    value: ByteFormatter.memory(snapshot.memory.compressedBytes)
+                )
 
-            Divider()
+                Divider()
 
-            SectionHeader(title: text(.network), systemImage: "network")
+                SectionHeader(title: text(.network), systemImage: "network")
 
-            PublicIPAddressRow(
-                publicLocation: ipGeolocationStore.location,
-                isLoadingLocation: ipGeolocationStore.isLoading,
-                locationError: ipGeolocationStore.errorMessage,
-                language: displaySettings.language,
-                copied: copiedIPAddress,
-                copyAction: copyPublicIPAddress
-            )
+                PublicIPAddressRow(
+                    publicLocation: ipGeolocationStore.location,
+                    isLoadingLocation: ipGeolocationStore.isLoading,
+                    locationError: ipGeolocationStore.errorMessage,
+                    language: displaySettings.language,
+                    copied: copiedIPAddress,
+                    copyAction: copyPublicIPAddress
+                )
 
-            NetworkSpeedSection(
-                download: snapshot.network.downloadBytesPerSecond,
-                upload: snapshot.network.uploadBytesPerSecond,
-                language: displaySettings.language
-            )
+                NetworkSpeedSection(
+                    download: snapshot.network.downloadBytesPerSecond,
+                    upload: snapshot.network.uploadBytesPerSecond,
+                    language: displaySettings.language
+                )
 
-            ClashStatusView(
-                status: clashStatusStore.status,
-                language: displaySettings.language
-            )
+                ClashStatusView(
+                    status: clashStatusStore.status,
+                    pendingAction: clashStatusStore.pendingAction,
+                    controlErrorMessage: clashStatusStore.controlErrorMessage,
+                    language: displaySettings.language,
+                    setSystemProxyEnabled: { clashStatusStore.setSystemProxyEnabled($0) },
+                    setTunEnabled: { clashStatusStore.setTunEnabled($0) },
+                    setMode: { clashStatusStore.setMode($0) }
+                )
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .padding(.bottom, 2)
         }
+        .scrollIndicators(.never)
     }
-
     private func settingsPage(_ snapshot: SystemSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             header(
@@ -385,7 +394,12 @@ private struct NetworkSpeedSection: View {
 
 private struct ClashStatusView: View {
     let status: ClashStatus
+    let pendingAction: ClashControlAction?
+    let controlErrorMessage: String?
     let language: AppLanguage
+    let setSystemProxyEnabled: @MainActor (Bool) -> Void
+    let setTunEnabled: @MainActor (Bool) -> Void
+    let setMode: @MainActor (ClashMode) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -399,13 +413,57 @@ private struct ClashStatusView: View {
                 )
             }
 
+            ControlToggleRow(
+                title: text(.systemProxy),
+                systemImage: "network.badge.shield.half.filled",
+                isOn: status.systemProxyEnabled,
+                isPending: pendingAction == .systemProxy,
+                isDisabled: pendingAction != nil || systemProxyDisabledReason != nil,
+                action: setSystemProxyEnabled
+            )
+
+            ControlToggleRow(
+                title: text(.tun),
+                systemImage: "point.topleft.down.curvedto.point.bottomright.up",
+                isOn: status.tunEnabled,
+                isPending: pendingAction == .tun,
+                isDisabled: pendingAction != nil || controllerDisabledReason != nil,
+                action: setTunEnabled
+            )
+
             HStack(spacing: 8) {
-                StatusPill(title: "\(text(.systemProxy)) \(status.systemProxyEnabled ? text(.on) : text(.off))", isOn: status.systemProxyEnabled)
-                StatusPill(title: "\(text(.tun)) \(status.tunEnabled ? text(.on) : text(.off))", isOn: status.tunEnabled)
-                Spacer(minLength: 0)
+                Label(text(.mode), systemImage: "switch.2")
+                    .font(.caption.weight(.semibold))
+                Spacer(minLength: 8)
+                if pendingAction == .mode {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+                Picker("", selection: modeBinding) {
+                    ForEach(ClashMode.allCases) { mode in
+                        Text(mode.title(language: language))
+                            .tag(mode)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .frame(width: 174)
+                .disabled(pendingAction != nil || controllerDisabledReason != nil)
             }
 
-            CompactStatusLine(title: text(.mode), value: localizedMode(status.mode))
+            if let disabledReason {
+                Label(disabledReason, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let controlErrorMessage {
+                Label(controlErrorMessage, systemImage: "xmark.circle")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .lineLimit(2)
+            }
+
             CompactStatusLine(title: text(.subscription), value: status.subscriptionName ?? text(.unavailable))
             CompactStatusLine(title: text(.proxyGroup), value: status.selectedGroup ?? text(.unavailable))
             CompactStatusLine(title: text(.node), value: status.selectedNode ?? text(.unavailable))
@@ -414,23 +472,71 @@ private struct ClashStatusView: View {
         .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
-    private func localizedMode(_ mode: String?) -> String {
-        switch mode?.lowercased() {
-        case "rule":
-            return text(.rule)
-        case "global":
-            return text(.global)
-        case "direct":
-            return text(.direct)
-        case let mode?:
-            return mode
-        case nil:
-            return text(.unavailable)
+    private var modeBinding: Binding<ClashMode> {
+        Binding(
+            get: {
+                ClashMode(apiValue: status.mode) ?? .rule
+            },
+            set: { mode in
+                guard mode != ClashMode(apiValue: status.mode) else {
+                    return
+                }
+                setMode(mode)
+            }
+        )
+    }
+
+    private var disabledReason: String? {
+        systemProxyDisabledReason ?? controllerDisabledReason
+    }
+
+    private var systemProxyDisabledReason: String? {
+        if !status.isRunning {
+            return text(.stopped)
         }
+        if !status.systemProxyEnabled, !status.proxyAutoConfigEnabled, status.mixedPort == nil {
+            return text(.mixedPortUnavailable)
+        }
+        return nil
+    }
+
+    private var controllerDisabledReason: String? {
+        if !status.isRunning {
+            return text(.stopped)
+        }
+        if !status.controllerAvailable {
+            return "\(text(.controller)) \(text(.unavailable))"
+        }
+        return nil
     }
 
     private func text(_ key: LocalizedCopy.Key) -> String {
         LocalizedCopy.text(key, language: language)
+    }
+}
+
+private struct ControlToggleRow: View {
+    let title: String
+    let systemImage: String
+    let isOn: Bool
+    let isPending: Bool
+    let isDisabled: Bool
+    let action: @MainActor (Bool) -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Label(title, systemImage: systemImage)
+                .font(.caption.weight(.semibold))
+            Spacer(minLength: 8)
+            if isPending {
+                ProgressView()
+                    .controlSize(.small)
+            }
+            Toggle("", isOn: Binding(get: { isOn }, set: { newValue in action(newValue) }))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .disabled(isDisabled)
+        }
     }
 }
 

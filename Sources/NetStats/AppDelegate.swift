@@ -1,14 +1,18 @@
 import AppKit
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+public final class AppDelegate: NSObject, NSApplicationDelegate {
     private var metricsStore: MetricsStore?
     private var displaySettings: DisplaySettings?
     private var ipGeolocationStore: IPGeolocationStore?
     private var clashStatusStore: ClashStatusStore?
     private var statusController: StatusBarController?
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    public override init() {
+        super.init()
+    }
+
+    public func applicationDidFinishLaunching(_ notification: Notification) {
         let metricsStore = MetricsStore()
         let displaySettings = DisplaySettings()
         let ipGeolocationStore = IPGeolocationStore()
@@ -28,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         clashStatusStore.start()
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
+    public func applicationWillTerminate(_ notification: Notification) {
         metricsStore?.stop()
         ipGeolocationStore?.stop()
         clashStatusStore?.stop()
