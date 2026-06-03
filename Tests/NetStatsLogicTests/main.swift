@@ -122,6 +122,38 @@ private func testScutilParserTreatsPACAsEnabled() {
     expect(ClashSystemProxyParser.isEnabled(scutilOutput: output, expectedPort: 7897) == true, "PAC proxy should be considered enabled")
 }
 
+private func testClashProfileParserExtractsCurrentRemoteTraffic() {
+    let yaml = """
+    current: active-subscription
+    items:
+    - uid: generated-rules
+      type: rules
+      name: null
+      file: generated-rules.yaml
+    - uid: active-subscription
+      type: remote
+      name: Example Cloud
+      selected:
+      - name: Auto
+        now: United States 01
+      extra:
+        upload: 2147483648
+        download: 3221225472
+        total: 10737418240
+        expire: 1794042037
+    """
+
+    let profile = ClashProfileParser.selectedProfile(from: yaml)
+
+    expect(profile.subscriptionName == "Example Cloud", "subscription name should come from current remote profile")
+    expect(profile.selectedGroup == "Auto", "selected group should be parsed")
+    expect(profile.selectedNode == "United States 01", "selected node should be parsed")
+    expect(profile.traffic?.uploadBytes == 2_147_483_648, "upload traffic should be parsed")
+    expect(profile.traffic?.downloadBytes == 3_221_225_472, "download traffic should be parsed")
+    expect(profile.traffic?.usedBytes == 5_368_709_120, "used traffic should sum upload and download")
+    expect(profile.traffic?.totalBytes == 10_737_418_240, "total traffic should be parsed")
+}
+
 private func testAppBundleDeclaresInstallableIcon() {
     let rootURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
     let infoURL = rootURL.appendingPathComponent("Resources/Info.plist")
@@ -144,6 +176,7 @@ testNestedBoolUpdaterReplacesExistingValue()
 testNestedBoolUpdaterAddsMissingValueInsideExistingBlock()
 testScutilParserRequiresExpectedPortWhenProvided()
 testScutilParserTreatsPACAsEnabled()
+testClashProfileParserExtractsCurrentRemoteTraffic()
 testAppBundleDeclaresInstallableIcon()
 
 print("NetStatsLogicTests passed")

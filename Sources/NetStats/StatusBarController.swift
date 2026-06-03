@@ -9,7 +9,7 @@ final class StatusBarController: NSObject {
     private let ipGeolocationStore: IPGeolocationStore
     private let clashStatusStore: ClashStatusStore
     private let statusItem: NSStatusItem
-    private let panelSize = NSSize(width: 400, height: 620)
+    private let panelSize = NSSize(width: 420, height: 740)
     private lazy var panel = makePanel()
     private var cancellables = Set<AnyCancellable>()
     private var eventMonitors: [Any] = []

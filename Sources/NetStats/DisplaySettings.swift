@@ -236,6 +236,7 @@ enum LocalizedCopy {
         case running
         case subscription
         case systemProxy
+        case trafficUsage
         case tun
         case stopped
         case unavailable
@@ -285,6 +286,7 @@ enum LocalizedCopy {
         .running: "Running",
         .subscription: "Subscription",
         .systemProxy: "System Proxy",
+        .trafficUsage: "Traffic",
         .tun: "TUN",
         .stopped: "Stopped",
         .unavailable: "Unavailable",
@@ -334,6 +336,7 @@ enum LocalizedCopy {
         .running: "运行中",
         .subscription: "订阅",
         .systemProxy: "系统代理",
+        .trafficUsage: "订阅流量",
         .tun: "TUN",
         .stopped: "未运行",
         .unavailable: "不可用",

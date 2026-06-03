@@ -5,7 +5,7 @@
 <h1 align="center">NetStats</h1>
 
 <p align="center">
-  <strong>A native macOS menu bar monitor for CPU, memory, network speed, public IP, and lightweight Clash Verge Dev control.</strong>
+  <strong>A native macOS menu bar monitor for CPU, memory, network speed, public IP, and Clash Verge Dev status.</strong>
 </p>
 
 <p align="center">
@@ -78,7 +78,7 @@ The npm installer downloads the matching GitHub Release DMG and opens it. It doe
 
 - macOS 14.0 or later
 - Apple Silicon and Intel Macs can build from source
-- Clash Verge Dev status and controls require Clash Verge Dev to be installed and running locally
+- Clash Verge Dev status display requires Clash Verge Dev to be installed and running locally
 
 ## Features
 
@@ -86,14 +86,14 @@ The npm installer downloads the matching GitHub Release DMG and opens it. It doe
 - Memory load, used memory, cached memory, and compressed memory
 - Network upload and download speed
 - Public IPv4 address, geolocation, and one-click copy
-- Clash Verge Dev status and controls: running state, system proxy toggle, TUN toggle, rule/global/direct mode, subscription, proxy group, and selected node
+- Clash Verge Dev status: running state, system proxy state, TUN state, rule/global/direct mode, subscription used/total traffic, proxy group, and selected node
 - Configurable menu bar and hover metrics
 - Native macOS AppKit + SwiftUI UI
 - English and Chinese interface
 
 ## Privacy
 
-System metrics, network speed, and Clash Verge Dev status are read and processed locally on your Mac and are never sent to any NetStats-owned server. Clash Verge Dev controls only read or update local Clash Verge Dev configuration, the local Mihomo controller, and macOS system proxy settings. Public IP and geolocation lookup uses `ipinfo.io` to resolve the current public egress address; if you do not need this information, you can block that request with a firewall or network filtering tool.
+System metrics, network speed, and Clash Verge Dev status are read and processed locally on your Mac and are never sent to any NetStats-owned server. Clash Verge Dev status display only reads local configuration, the local Mihomo controller, and macOS system proxy state. Public IP and geolocation lookup uses `ipinfo.io` to resolve the current public egress address; if you do not need this information, you can block that request with a firewall or network filtering tool.
 
 ## FAQ
 
@@ -105,9 +105,9 @@ The current public DMG is unsigned and not notarized. You can build from source,
 
 NetStats reads local Clash Verge Dev configuration files, process state, macOS system proxy state, and the locally available Mihomo controller. It does not upload that information to any NetStats server.
 
-### Does NetStats quit or restart Clash Verge Dev?
+### Does NetStats control or restart Clash Verge Dev?
 
-No. NetStats only provides lightweight controls for system proxy, TUN, and rule/global/direct mode. It does not quit or restart Clash Verge Dev.
+No. NetStats only displays Clash Verge Dev running state, system proxy, TUN, mode, subscription traffic, proxy group, and node status. It does not quit, restart, or control Clash Verge Dev.
 
 ### Why is the npm command not available yet?
 

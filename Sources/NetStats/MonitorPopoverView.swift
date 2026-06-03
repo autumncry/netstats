@@ -22,7 +22,7 @@ struct MonitorPopoverView: View {
                 settingsPage(snapshot)
             }
         }
-        .padding(18)
+        .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -33,100 +33,92 @@ struct MonitorPopoverView: View {
     }
 
     private func monitorPage(_ snapshot: SystemSnapshot) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                header(
-                    title: text(.systemMonitor),
-                    subtitle: Text(snapshot.timestamp, style: .time),
-                    buttonImage: "gearshape",
-                    buttonAction: { page = .settings }
-                )
-                Divider()
+        VStack(alignment: .leading, spacing: 10) {
+            header(
+                title: text(.systemMonitor),
+                subtitle: Text(snapshot.timestamp, style: .time),
+                buttonImage: "gearshape",
+                buttonAction: { page = .settings }
+            )
+            Divider()
 
-                SectionHeader(title: text(.hardware), systemImage: "desktopcomputer")
+            SectionHeader(title: text(.hardware), systemImage: "desktopcomputer")
 
-                MetricGauge(
-                    title: "CPU",
-                    systemImage: "cpu",
-                    value: snapshot.cpuUsage,
-                    valueText: percent(snapshot.cpuUsage),
-                    tint: .blue
-                )
+            MetricGauge(
+                title: "CPU",
+                systemImage: "cpu",
+                value: snapshot.cpuUsage,
+                valueText: percent(snapshot.cpuUsage),
+                tint: .blue
+            )
 
-                CompactValueRow(
-                    title: text(.gpu),
-                    systemImage: "display",
-                    value: gpuName
-                )
+            CompactValueRow(
+                title: text(.gpu),
+                systemImage: "display",
+                value: gpuName
+            )
 
-                MetricGauge(
-                    title: text(.memoryLoad),
-                    systemImage: "memorychip",
-                    value: snapshot.memory.pressure,
-                    valueText: percent(snapshot.memory.pressure),
-                    tint: .green,
-                    accessory: {
-                        Button(action: openActivityMonitor) {
-                            Image(systemName: "arrow.up.forward.app")
-                                .font(.system(size: 13, weight: .semibold))
-                        }
-                        .buttonStyle(.borderless)
-                        .help(text(.activityMonitor))
+            MetricGauge(
+                title: text(.memoryLoad),
+                systemImage: "memorychip",
+                value: snapshot.memory.pressure,
+                valueText: percent(snapshot.memory.pressure),
+                tint: .green,
+                accessory: {
+                    Button(action: openActivityMonitor) {
+                        Image(systemName: "arrow.up.forward.app")
+                            .font(.system(size: 13, weight: .semibold))
                     }
-                )
+                    .buttonStyle(.borderless)
+                    .help(text(.activityMonitor))
+                }
+            )
 
-                CompactValueRow(
-                    title: text(.used),
-                    systemImage: "chart.pie",
-                    value: "\(ByteFormatter.memory(snapshot.memory.usedBytes)) / \(ByteFormatter.memory(snapshot.memory.totalBytes))"
-                )
+            CompactValueRow(
+                title: text(.used),
+                systemImage: "chart.pie",
+                value: "\(ByteFormatter.memory(snapshot.memory.usedBytes)) / \(ByteFormatter.memory(snapshot.memory.totalBytes))"
+            )
 
-                CompactValueRow(
-                    title: text(.cached),
-                    systemImage: "externaldrive",
-                    value: ByteFormatter.memory(snapshot.memory.cachedBytes)
-                )
+            CompactValueRow(
+                title: text(.cached),
+                systemImage: "externaldrive",
+                value: ByteFormatter.memory(snapshot.memory.cachedBytes)
+            )
 
-                CompactValueRow(
-                    title: text(.compressed),
-                    systemImage: "archivebox",
-                    value: ByteFormatter.memory(snapshot.memory.compressedBytes)
-                )
+            CompactValueRow(
+                title: text(.compressed),
+                systemImage: "archivebox",
+                value: ByteFormatter.memory(snapshot.memory.compressedBytes)
+            )
 
-                Divider()
+            Divider()
 
-                SectionHeader(title: text(.network), systemImage: "network")
+            SectionHeader(title: text(.network), systemImage: "network")
 
-                PublicIPAddressRow(
-                    publicLocation: ipGeolocationStore.location,
-                    isLoadingLocation: ipGeolocationStore.isLoading,
-                    locationError: ipGeolocationStore.errorMessage,
-                    language: displaySettings.language,
-                    copied: copiedIPAddress,
-                    copyAction: copyPublicIPAddress
-                )
+            PublicIPAddressRow(
+                publicLocation: ipGeolocationStore.location,
+                isLoadingLocation: ipGeolocationStore.isLoading,
+                locationError: ipGeolocationStore.errorMessage,
+                language: displaySettings.language,
+                copied: copiedIPAddress,
+                copyAction: copyPublicIPAddress
+            )
 
-                NetworkSpeedSection(
-                    download: snapshot.network.downloadBytesPerSecond,
-                    upload: snapshot.network.uploadBytesPerSecond,
-                    language: displaySettings.language
-                )
+            ClashStatusView(
+                status: clashStatusStore.status,
+                language: displaySettings.language
+            )
 
-                ClashStatusView(
-                    status: clashStatusStore.status,
-                    pendingAction: clashStatusStore.pendingAction,
-                    controlErrorMessage: clashStatusStore.controlErrorMessage,
-                    language: displaySettings.language,
-                    setSystemProxyEnabled: { clashStatusStore.setSystemProxyEnabled($0) },
-                    setTunEnabled: { clashStatusStore.setTunEnabled($0) },
-                    setMode: { clashStatusStore.setMode($0) }
-                )
-            }
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .padding(.bottom, 2)
+            NetworkSpeedSection(
+                download: snapshot.network.downloadBytesPerSecond,
+                upload: snapshot.network.uploadBytesPerSecond,
+                language: displaySettings.language
+            )
         }
-        .scrollIndicators(.never)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
+
     private func settingsPage(_ snapshot: SystemSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             header(
@@ -166,33 +158,31 @@ struct MonitorPopoverView: View {
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
 
-            ScrollView {
-                VStack(spacing: 10) {
-                    ForEach(MonitorMetric.configurableCases) { metric in
-                        MetricSettingRow(
-                            metric: metric,
-                            language: displaySettings.language,
-                            statusBarBinding: binding(for: metric, inStatusBar: true),
-                            hoverBinding: binding(for: metric, inStatusBar: false)
-                        )
-                    }
-
-                    Divider()
-                        .padding(.vertical, 4)
-
-                    SectionHeader(title: text(.advanced), systemImage: "slider.horizontal.3")
-
-                    CompactValueRow(
-                        title: text(.interfaces),
-                        systemImage: "point.3.connected.trianglepath.dotted",
-                        value: snapshot.network.activeInterfaces.isEmpty
-                            ? text(.idle)
-                            : snapshot.network.activeInterfaces.joined(separator: " / ")
+            VStack(spacing: 10) {
+                ForEach(MonitorMetric.configurableCases) { metric in
+                    MetricSettingRow(
+                        metric: metric,
+                        language: displaySettings.language,
+                        statusBarBinding: binding(for: metric, inStatusBar: true),
+                        hoverBinding: binding(for: metric, inStatusBar: false)
                     )
                 }
-                .padding(.vertical, 2)
+
+                Divider()
+                    .padding(.vertical, 4)
+
+                SectionHeader(title: text(.advanced), systemImage: "slider.horizontal.3")
+
+                CompactValueRow(
+                    title: text(.interfaces),
+                    systemImage: "point.3.connected.trianglepath.dotted",
+                    value: snapshot.network.activeInterfaces.isEmpty
+                        ? text(.idle)
+                        : snapshot.network.activeInterfaces.joined(separator: " / ")
+                )
             }
-            .scrollIndicators(.never)
+
+            Spacer(minLength: 0)
         }
     }
 
@@ -394,12 +384,7 @@ private struct NetworkSpeedSection: View {
 
 private struct ClashStatusView: View {
     let status: ClashStatus
-    let pendingAction: ClashControlAction?
-    let controlErrorMessage: String?
     let language: AppLanguage
-    let setSystemProxyEnabled: @MainActor (Bool) -> Void
-    let setTunEnabled: @MainActor (Bool) -> Void
-    let setMode: @MainActor (ClashMode) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -413,94 +398,62 @@ private struct ClashStatusView: View {
                 )
             }
 
-            ControlToggleRow(
-                title: text(.systemProxy),
-                systemImage: "network.badge.shield.half.filled",
-                isOn: status.systemProxyEnabled,
-                isPending: pendingAction == .systemProxy,
-                isDisabled: pendingAction != nil || systemProxyDisabledReason != nil,
-                action: setSystemProxyEnabled
-            )
-
-            ControlToggleRow(
-                title: text(.tun),
-                systemImage: "point.topleft.down.curvedto.point.bottomright.up",
-                isOn: status.tunEnabled,
-                isPending: pendingAction == .tun,
-                isDisabled: pendingAction != nil || controllerDisabledReason != nil,
-                action: setTunEnabled
-            )
-
-            HStack(spacing: 8) {
-                Label(text(.mode), systemImage: "switch.2")
-                    .font(.caption.weight(.semibold))
-                Spacer(minLength: 8)
-                if pendingAction == .mode {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-                Picker("", selection: modeBinding) {
-                    ForEach(ClashMode.allCases) { mode in
-                        Text(mode.title(language: language))
-                            .tag(mode)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-                .frame(width: 174)
-                .disabled(pendingAction != nil || controllerDisabledReason != nil)
-            }
-
-            if let disabledReason {
-                Label(disabledReason, systemImage: "exclamationmark.triangle")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            if let controlErrorMessage {
-                Label(controlErrorMessage, systemImage: "xmark.circle")
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .lineLimit(2)
+            HStack(spacing: 6) {
+                ReadOnlyStateChip(
+                    title: text(.systemProxy),
+                    value: status.systemProxyEnabled ? text(.on) : text(.off),
+                    isOn: status.systemProxyEnabled
+                )
+                ReadOnlyStateChip(
+                    title: text(.tun),
+                    value: status.tunEnabled ? text(.on) : text(.off),
+                    isOn: status.tunEnabled
+                )
+                ReadOnlyStateChip(
+                    title: text(.mode),
+                    value: modeText,
+                    isOn: status.isRunning
+                )
             }
 
             CompactStatusLine(title: text(.subscription), value: status.subscriptionName ?? text(.unavailable))
+            CompactStatusLine(title: text(.trafficUsage), value: subscriptionTrafficText)
             CompactStatusLine(title: text(.proxyGroup), value: status.selectedGroup ?? text(.unavailable))
             CompactStatusLine(title: text(.node), value: status.selectedNode ?? text(.unavailable))
+
+            if let statusNote {
+                Label(statusNote, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
         }
         .padding(10)
         .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
-    private var modeBinding: Binding<ClashMode> {
-        Binding(
-            get: {
-                ClashMode(apiValue: status.mode) ?? .rule
-            },
-            set: { mode in
-                guard mode != ClashMode(apiValue: status.mode) else {
-                    return
-                }
-                setMode(mode)
-            }
-        )
-    }
-
-    private var disabledReason: String? {
-        systemProxyDisabledReason ?? controllerDisabledReason
-    }
-
-    private var systemProxyDisabledReason: String? {
-        if !status.isRunning {
-            return text(.stopped)
+    private var modeText: String {
+        if let mode = ClashMode(apiValue: status.mode) {
+            return mode.title(language: language)
         }
-        if !status.systemProxyEnabled, !status.proxyAutoConfigEnabled, status.mixedPort == nil {
-            return text(.mixedPortUnavailable)
-        }
-        return nil
+        return status.mode ?? text(.unavailable)
     }
 
-    private var controllerDisabledReason: String? {
+    private var subscriptionTrafficText: String {
+        guard let traffic = status.subscriptionTraffic else {
+            return text(.unavailable)
+        }
+
+        let used = ByteFormatter.memory(traffic.usedBytes)
+        guard let totalBytes = traffic.totalBytes, totalBytes > 0 else {
+            return used
+        }
+
+        return "\(used) / \(ByteFormatter.memory(totalBytes))"
+    }
+
+    private var statusNote: String? {
         if !status.isRunning {
             return text(.stopped)
         }
@@ -515,28 +468,29 @@ private struct ClashStatusView: View {
     }
 }
 
-private struct ControlToggleRow: View {
+private struct ReadOnlyStateChip: View {
     let title: String
-    let systemImage: String
+    let value: String
     let isOn: Bool
-    let isPending: Bool
-    let isDisabled: Bool
-    let action: @MainActor (Bool) -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
-            Label(title, systemImage: systemImage)
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Text(value)
                 .font(.caption.weight(.semibold))
-            Spacer(minLength: 8)
-            if isPending {
-                ProgressView()
-                    .controlSize(.small)
-            }
-            Toggle("", isOn: Binding(get: { isOn }, set: { newValue in action(newValue) }))
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .disabled(isDisabled)
+                .foregroundStyle(isOn ? .green : .secondary)
+                .lineLimit(1)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            (isOn ? Color.green : Color.secondary).opacity(0.10),
+            in: RoundedRectangle(cornerRadius: 7, style: .continuous)
+        )
     }
 }
 
