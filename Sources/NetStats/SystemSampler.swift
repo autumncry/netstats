@@ -11,6 +11,7 @@ final class SystemSampler {
             timestamp: Date(),
             cpuUsage: readCPUUsage(),
             memory: readMemory(),
+            disk: readDisk(),
             network: readNetwork()
         )
     }
@@ -161,6 +162,27 @@ final class SystemSampler {
             activeInterfaces: current.activeInterfaces,
             ipv4Addresses: current.ipv4Addresses
         )
+    }
+
+    private func readDisk() -> DiskSnapshot {
+        do {
+            let values = try URL(fileURLWithPath: "/").resourceValues(forKeys: [
+                .volumeTotalCapacityKey,
+                .volumeAvailableCapacityForImportantUsageKey,
+                .volumeAvailableCapacityKey
+            ])
+            let total = UInt64(max(values.volumeTotalCapacity ?? 0, 0))
+            let available = UInt64(max(Int(values.volumeAvailableCapacityForImportantUsage ?? Int64(values.volumeAvailableCapacity ?? 0)), 0))
+            let free = min(total, available)
+            let used = total > free ? total - free : 0
+            return DiskSnapshot(
+                usedBytes: used,
+                totalBytes: total,
+                freeBytes: free
+            )
+        } catch {
+            return DiskSnapshot(usedBytes: 0, totalBytes: 0, freeBytes: 0)
+        }
     }
 }
 

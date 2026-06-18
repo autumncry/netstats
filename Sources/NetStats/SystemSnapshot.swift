@@ -50,10 +50,22 @@ struct NetworkSnapshot: Equatable {
     }
 }
 
+struct DiskSnapshot: Equatable {
+    let usedBytes: UInt64
+    let totalBytes: UInt64
+    let freeBytes: UInt64
+
+    var usage: Double {
+        guard totalBytes > 0 else { return 0 }
+        return min(max(Double(usedBytes) / Double(totalBytes), 0), 1)
+    }
+}
+
 struct SystemSnapshot: Equatable {
     let timestamp: Date
     let cpuUsage: Double
     let memory: MemorySnapshot
+    let disk: DiskSnapshot
     let network: NetworkSnapshot
 
     static let empty = SystemSnapshot(
@@ -67,6 +79,11 @@ struct SystemSnapshot: Equatable {
             wiredBytes: 0,
             compressedBytes: 0,
             pressure: 0
+        ),
+        disk: DiskSnapshot(
+            usedBytes: 0,
+            totalBytes: 0,
+            freeBytes: 0
         ),
         network: NetworkSnapshot(
             downloadBytesPerSecond: 0,

@@ -3,7 +3,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "netstats",
+    name: "NetStats",
     platforms: [
         .macOS(.v14)
     ],

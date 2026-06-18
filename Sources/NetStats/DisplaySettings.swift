@@ -202,8 +202,11 @@ enum LocalizedCopy {
         case copied
         case copyPublicIP
         case display
+        case disk
+        case diskProcessMetricsUnavailable
         case done
         case down
+        case free
         case gpu
         case hardware
         case hover
@@ -219,6 +222,10 @@ enum LocalizedCopy {
         case network
         case publicIP
         case publicIPLocation
+        case noProcessData
+        case networkProcessMetricsUnavailable
+        case processes
+        case processMetricsUnavailable
         case settings
         case statusBarAndHover
         case systemMonitor
@@ -242,6 +249,7 @@ enum LocalizedCopy {
         case unavailable
         case up
         case used
+        case waitingForSample
     }
 
     private static let english: [Key: String] = [
@@ -252,8 +260,11 @@ enum LocalizedCopy {
         .copied: "Copied",
         .copyPublicIP: "Copy public IP",
         .display: "Display",
+        .disk: "Disk",
+        .diskProcessMetricsUnavailable: "Process disk usage needs privileged tracing",
         .done: "Done",
         .down: "Down",
+        .free: "free",
         .gpu: "GPU",
         .hardware: "Hardware",
         .hover: "Hover",
@@ -269,6 +280,10 @@ enum LocalizedCopy {
         .network: "Network",
         .publicIP: "Public IP",
         .publicIPLocation: "Public IP location",
+        .noProcessData: "No process activity",
+        .networkProcessMetricsUnavailable: "Process network usage needs extra local-network permission",
+        .processes: "processes",
+        .processMetricsUnavailable: "Process metrics unavailable",
         .settings: "Settings",
         .statusBarAndHover: "Status bar and hover",
         .systemMonitor: "NetStats",
@@ -291,7 +306,8 @@ enum LocalizedCopy {
         .stopped: "Stopped",
         .unavailable: "Unavailable",
         .up: "Up",
-        .used: "Used"
+        .used: "Used",
+        .waitingForSample: "Waiting for sample"
     ]
 
     private static let simplifiedChinese: [Key: String] = [
@@ -302,8 +318,11 @@ enum LocalizedCopy {
         .copied: "已复制",
         .copyPublicIP: "复制公网 IP",
         .display: "显示设置",
+        .disk: "硬盘",
+        .diskProcessMetricsUnavailable: "进程硬盘占用需要特权追踪",
         .done: "完成",
         .down: "下载",
+        .free: "可用",
         .gpu: "GPU",
         .hardware: "硬件信息",
         .hover: "悬停",
@@ -319,6 +338,10 @@ enum LocalizedCopy {
         .network: "网络信息",
         .publicIP: "公网 IP",
         .publicIPLocation: "公网 IP 地理位置",
+        .noProcessData: "暂无进程活动",
+        .networkProcessMetricsUnavailable: "进程网络占用需要额外本地网络权限",
+        .processes: "个进程",
+        .processMetricsUnavailable: "进程指标不可用",
         .settings: "设置",
         .statusBarAndHover: "状态栏和悬停显示",
         .systemMonitor: "NetStats",
@@ -341,6 +364,7 @@ enum LocalizedCopy {
         .stopped: "未运行",
         .unavailable: "不可用",
         .up: "上传",
-        .used: "已用"
+        .used: "已用",
+        .waitingForSample: "等待采样"
     ]
 }

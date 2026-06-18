@@ -169,6 +169,40 @@ private func testAppBundleDeclaresInstallableIcon() {
     expect(FileManager.default.fileExists(atPath: iconURL.path), "AppIcon.icns should exist in Resources")
 }
 
+private func testSwiftPackageNameUsesNetStatsCasing() {
+    let rootURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    let packageURL = rootURL.appendingPathComponent("Package.swift")
+    guard let packageText = try? String(contentsOf: packageURL, encoding: .utf8) else {
+        fputs("FAIL: Package.swift should be readable\n", stderr)
+        Foundation.exit(1)
+    }
+
+    expect(packageText.contains(#"name: "NetStats""#), "SwiftPM package name should be NetStats")
+}
+
+private func testProcessPSParserBuildsTopCPUAndMemoryProcesses() {
+    let output = """
+      101  42.5   4.2  700000 /Applications/Foo.app/Contents/MacOS/Foo
+      202   7.5   8.4 1400000 /usr/bin/bar
+      303  13.0   1.0  100000 /System/Library/baz
+    """
+
+    let processes = ProcessMetricParser.processes(fromPSOutput: output)
+    let topCPU = ProcessMetricParser.topCPUProcesses(from: processes, limit: 2)
+    let topMemory = ProcessMetricParser.topMemoryProcesses(from: processes, limit: 2)
+
+    expect(topCPU.map(\.name) == ["Foo", "baz"], "CPU processes should be sorted by CPU percentage")
+    expect(topCPU.first?.value == 42.5, "CPU percentage should be parsed")
+    expect(topMemory.map(\.name) == ["bar", "Foo"], "memory processes should be sorted by RSS")
+    expect(topMemory.first?.auxiliaryBytes == 1_433_600_000, "RSS kilobytes should be converted to bytes")
+}
+
+private func testProcessMetricSamplerReadsLiveMemoryProcesses() {
+    let snapshot = ProcessMetricSampler().sample()
+
+    expect(!snapshot.memory.items.isEmpty, "live process sampler should return memory processes")
+}
+
 testClashModeNormalizesSupportedValues()
 testTopLevelScalarUpdaterReplacesExistingValue()
 testTopLevelScalarUpdaterAppendsMissingValue()
@@ -178,5 +212,8 @@ testScutilParserRequiresExpectedPortWhenProvided()
 testScutilParserTreatsPACAsEnabled()
 testClashProfileParserExtractsCurrentRemoteTraffic()
 testAppBundleDeclaresInstallableIcon()
+testSwiftPackageNameUsesNetStatsCasing()
+testProcessPSParserBuildsTopCPUAndMemoryProcesses()
+testProcessMetricSamplerReadsLiveMemoryProcesses()
 
 print("NetStatsLogicTests passed")

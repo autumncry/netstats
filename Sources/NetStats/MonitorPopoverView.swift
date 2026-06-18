@@ -13,18 +13,28 @@ struct MonitorPopoverView: View {
 
     var body: some View {
         let snapshot = metricsStore.snapshot
+        let processSnapshot = metricsStore.processSnapshot
 
         Group {
             switch page {
             case .monitor:
-                monitorPage(snapshot)
+                monitorPage(snapshot, processes: processSnapshot)
             case .settings:
                 settingsPage(snapshot)
             }
         }
-        .padding(16)
+        .padding(18)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(.regularMaterial)
+        .background {
+            LinearGradient(
+                colors: [
+                    Color(red: 0.10, green: 0.11, blue: 0.13),
+                    Color(red: 0.035, green: 0.04, blue: 0.045)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -32,89 +42,90 @@ struct MonitorPopoverView: View {
         }
     }
 
-    private func monitorPage(_ snapshot: SystemSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            header(
-                title: text(.systemMonitor),
-                subtitle: Text(snapshot.timestamp, style: .time),
-                buttonImage: "gearshape",
-                buttonAction: { page = .settings }
-            )
-            Divider()
-
-            SectionHeader(title: text(.hardware), systemImage: "desktopcomputer")
-
-            MetricGauge(
-                title: "CPU",
-                systemImage: "cpu",
-                value: snapshot.cpuUsage,
-                valueText: percent(snapshot.cpuUsage),
-                tint: .blue
-            )
-
-            CompactValueRow(
-                title: text(.gpu),
-                systemImage: "display",
-                value: gpuName
-            )
-
-            MetricGauge(
-                title: text(.memoryLoad),
-                systemImage: "memorychip",
-                value: snapshot.memory.pressure,
-                valueText: percent(snapshot.memory.pressure),
-                tint: .green,
-                accessory: {
-                    Button(action: openActivityMonitor) {
-                        Image(systemName: "arrow.up.forward.app")
-                            .font(.system(size: 13, weight: .semibold))
-                    }
-                    .buttonStyle(.borderless)
-                    .help(text(.activityMonitor))
-                }
-            )
-
-            CompactValueRow(
-                title: text(.used),
-                systemImage: "chart.pie",
-                value: "\(ByteFormatter.memory(snapshot.memory.usedBytes)) / \(ByteFormatter.memory(snapshot.memory.totalBytes))"
-            )
-
-            CompactValueRow(
-                title: text(.cached),
-                systemImage: "externaldrive",
-                value: ByteFormatter.memory(snapshot.memory.cachedBytes)
-            )
-
-            CompactValueRow(
-                title: text(.compressed),
-                systemImage: "archivebox",
-                value: ByteFormatter.memory(snapshot.memory.compressedBytes)
-            )
-
-            Divider()
-
-            SectionHeader(title: text(.network), systemImage: "network")
-
-            PublicIPAddressRow(
-                publicLocation: ipGeolocationStore.location,
-                isLoadingLocation: ipGeolocationStore.isLoading,
-                locationError: ipGeolocationStore.errorMessage,
+    private func monitorPage(_ snapshot: SystemSnapshot, processes: ProcessSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            TerminalHeader(
+                snapshot: snapshot,
+                gpuName: gpuName,
                 language: displaySettings.language,
-                copied: copiedIPAddress,
-                copyAction: copyPublicIPAddress
+                settingsAction: { page = .settings }
             )
 
-            ClashStatusView(
-                status: clashStatusStore.status,
-                language: displaySettings.language
-            )
+            HStack(alignment: .top, spacing: 12) {
+                DashboardMetricCard(
+                    title: "CPU",
+                    symbol: "◎",
+                    value: percent(snapshot.cpuUsage),
+                    detail: processCountText(processes.cpu.items),
+                    progress: snapshot.cpuUsage,
+                    tint: .red,
+                    processes: processes.cpu,
+                    valueStyle: .percent,
+                    language: displaySettings.language
+                )
 
-            NetworkSpeedSection(
-                download: snapshot.network.downloadBytesPerSecond,
-                upload: snapshot.network.uploadBytesPerSecond,
-                language: displaySettings.language
-            )
+                DashboardMetricCard(
+                    title: text(.memoryLoad),
+                    symbol: "▣",
+                    value: "\(ByteFormatter.memory(snapshot.memory.usedBytes)) / \(ByteFormatter.memory(snapshot.memory.totalBytes))",
+                    detail: percent(snapshot.memory.pressure),
+                    progress: snapshot.memory.pressure,
+                    tint: .red,
+                    processes: processes.memory,
+                    valueStyle: .memory,
+                    language: displaySettings.language
+                )
+            }
+
+            HStack(alignment: .top, spacing: 12) {
+                DashboardMetricCard(
+                    title: text(.gpu),
+                    symbol: "◩",
+                    value: gpuName,
+                    detail: text(.processMetricsUnavailable),
+                    progress: nil,
+                    tint: .purple,
+                    processes: processes.gpu,
+                    valueStyle: .percent,
+                    language: displaySettings.language
+                )
+
+                DashboardMetricCard(
+                    title: text(.disk),
+                    symbol: "▥",
+                    value: diskUsageText(snapshot.disk),
+                    detail: diskFreeText(snapshot.disk),
+                    progress: snapshot.disk.usage,
+                    tint: .orange,
+                    processes: processes.disk,
+                    valueStyle: .speed,
+                    language: displaySettings.language
+                )
+            }
+
+            HStack(alignment: .top, spacing: 12) {
+                DashboardMetricCard(
+                    title: text(.network),
+                    symbol: "↕",
+                    value: "\(text(.down)) \(ByteFormatter.speed(snapshot.network.downloadBytesPerSecond))",
+                    detail: "\(text(.up)) \(ByteFormatter.speed(snapshot.network.uploadBytesPerSecond))",
+                    progress: networkActivityLevel(snapshot.network),
+                    tint: .green,
+                    processes: processes.network,
+                    valueStyle: .speed,
+                    language: displaySettings.language
+                )
+
+                NetworkIdentityCard(
+                    location: ipGeolocationStore.location,
+                    isLoading: ipGeolocationStore.isLoading,
+                    locationError: ipGeolocationStore.errorMessage,
+                    clashStatus: clashStatusStore.status,
+                    copied: copiedIPAddress,
+                    copyAction: copyPublicIPAddress,
+                    language: displaySettings.language
+                )
+            }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
@@ -222,9 +233,34 @@ struct MonitorPopoverView: View {
         "\(Int(round(value * 100)))%"
     }
 
-    private var gpuName: String {
-        MTLCreateSystemDefaultDevice()?.name ?? text(.unavailable)
+    private func processCountText(_ items: [ProcessMetricSample]) -> String {
+        items.isEmpty ? text(.waitingForSample) : "\(items.count) \(text(.processes))"
     }
+
+    private func diskUsageText(_ disk: DiskSnapshot) -> String {
+        guard disk.totalBytes > 0 else {
+            return text(.unavailable)
+        }
+        return "\(ByteFormatter.memory(disk.usedBytes)) / \(ByteFormatter.memory(disk.totalBytes))"
+    }
+
+    private func diskFreeText(_ disk: DiskSnapshot) -> String {
+        guard disk.totalBytes > 0 else {
+            return text(.unavailable)
+        }
+        return "\(ByteFormatter.memory(disk.freeBytes)) \(text(.free))"
+    }
+
+    private func networkActivityLevel(_ network: NetworkSnapshot) -> Double {
+        let bytesPerSecond = max(network.downloadBytesPerSecond, network.uploadBytesPerSecond)
+        return min(max(bytesPerSecond / 10_000_000, 0), 1)
+    }
+
+    private var gpuName: String {
+        Self.detectedGPUName ?? text(.unavailable)
+    }
+
+    private static let detectedGPUName = MTLCreateSystemDefaultDevice()?.name
 
     private func text(_ key: LocalizedCopy.Key) -> String {
         LocalizedCopy.text(key, language: displaySettings.language)
@@ -259,6 +295,338 @@ struct MonitorPopoverView: View {
                 displaySettings.set(isVisible, metric: metric, inStatusBar: inStatusBar)
             }
         )
+    }
+}
+
+private struct TerminalHeader: View {
+    let snapshot: SystemSnapshot
+    let gpuName: String
+    let language: AppLanguage
+    let settingsAction: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 10) {
+                    Text("Status")
+                        .foregroundStyle(.purple.opacity(0.85))
+                    Text("Health")
+                        .foregroundStyle(.secondary)
+                    Circle()
+                        .fill(healthColor)
+                        .frame(width: 8, height: 8)
+                    Text("\(healthScore)")
+                        .foregroundStyle(healthColor)
+                        .fontWeight(.bold)
+                    Text("NetStats")
+                        .foregroundStyle(.primary)
+                        .fontWeight(.semibold)
+                }
+                .font(.system(.title3, design: .monospaced))
+
+                Text(systemLine)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Spacer()
+
+            SignalGlyph()
+                .frame(width: 112, height: 46)
+
+            Button(action: settingsAction) {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 15, weight: .semibold))
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.borderless)
+            .help(LocalizedCopy.text(.settings, language: language))
+        }
+        .padding(.bottom, 2)
+    }
+
+    private var healthScore: Int {
+        let pressure = max(snapshot.cpuUsage, snapshot.memory.pressure, snapshot.disk.usage)
+        return max(0, 100 - Int(round(pressure * 100)))
+    }
+
+    private var healthColor: Color {
+        if healthScore < 35 {
+            return .red
+        }
+        if healthScore < 65 {
+            return .yellow
+        }
+        return .green
+    }
+
+    private var systemLine: String {
+        let memory = ByteFormatter.memory(snapshot.memory.totalBytes)
+        let disk = snapshot.disk.totalBytes > 0 ? ByteFormatter.memory(snapshot.disk.totalBytes) : "Disk N/A"
+        return "\(ProcessInfo.processInfo.hostName) · \(gpuName) · \(memory) RAM · \(disk) disk"
+    }
+}
+
+private struct SignalGlyph: View {
+    var body: some View {
+        VStack(alignment: .center, spacing: 2) {
+            Text("╱╲╱╲")
+            Text("  NET  ")
+            Text("╲╱╲╱")
+        }
+        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+        .foregroundStyle(.purple.opacity(0.85))
+    }
+}
+
+private struct DashboardMetricCard: View {
+    let title: String
+    let symbol: String
+    let value: String
+    let detail: String
+    let progress: Double?
+    let tint: Color
+    let processes: ProcessCategorySnapshot
+    let valueStyle: ProcessValueStyle
+    let language: AppLanguage
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(spacing: 8) {
+                Text(symbol)
+                    .foregroundStyle(tint)
+                Text(title)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.purple.opacity(0.86))
+                Rectangle()
+                    .fill(.secondary.opacity(0.18))
+                    .frame(height: 1)
+            }
+            .font(.system(.headline, design: .monospaced))
+
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(value)
+                    .font(.system(.body, design: .monospaced))
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 8)
+                Text(detail)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            PixelUsageBar(value: progress, tint: tint)
+
+            ProcessTopList(
+                category: processes,
+                valueStyle: valueStyle,
+                tint: tint,
+                language: language
+            )
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 182, alignment: .topLeading)
+        .background(.black.opacity(0.16), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(.primary.opacity(0.08), lineWidth: 1)
+        }
+    }
+}
+
+private enum ProcessValueStyle {
+    case percent
+    case memory
+    case speed
+}
+
+private struct PixelUsageBar: View {
+    let value: Double?
+    let tint: Color
+
+    private let segmentCount = 18
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<segmentCount, id: \.self) { index in
+                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                    .fill(fill(for: index))
+                    .frame(height: 12)
+            }
+        }
+    }
+
+    private func fill(for index: Int) -> Color {
+        guard let value else {
+            return .secondary.opacity(index % 3 == 0 ? 0.18 : 0.10)
+        }
+
+        let filled = Int(round(min(max(value, 0), 1) * Double(segmentCount)))
+        if index < filled {
+            return tint.opacity(index >= max(filled - 2, 0) ? 0.88 : 0.68)
+        }
+        return .secondary.opacity(0.13)
+    }
+}
+
+private struct ProcessTopList: View {
+    let category: ProcessCategorySnapshot
+    let valueStyle: ProcessValueStyle
+    let tint: Color
+    let language: AppLanguage
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            if category.items.isEmpty {
+                Text(noteText)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            } else {
+                ForEach(Array(category.items.enumerated()), id: \.element.id) { index, item in
+                    HStack(spacing: 8) {
+                        Text("\(index + 1)")
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(tint)
+                            .frame(width: 12, alignment: .leading)
+                        Text(item.name)
+                            .font(.system(.caption, design: .monospaced))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer(minLength: 8)
+                        Text(valueText(for: item))
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
+    }
+
+    private func valueText(for item: ProcessMetricSample) -> String {
+        switch valueStyle {
+        case .percent:
+            return String(format: "%.1f%%", item.value)
+        case .memory:
+            let memory = item.auxiliaryBytes.map(ByteFormatter.memory) ?? "-"
+            return "\(memory) · \(String(format: "%.1f%%", item.value))"
+        case .speed:
+            return ByteFormatter.speed(item.value)
+        }
+    }
+
+    private var noteText: String {
+        guard let note = category.note else {
+            return LocalizedCopy.text(.noProcessData, language: language)
+        }
+        if note.contains("GPU") {
+            return LocalizedCopy.text(.processMetricsUnavailable, language: language)
+        }
+        if note.contains("disk") {
+            return LocalizedCopy.text(.diskProcessMetricsUnavailable, language: language)
+        }
+        if note.contains("network") {
+            return LocalizedCopy.text(.networkProcessMetricsUnavailable, language: language)
+        }
+        return LocalizedCopy.text(.waitingForSample, language: language)
+    }
+}
+
+private struct NetworkIdentityCard: View {
+    let location: PublicIPLocation?
+    let isLoading: Bool
+    let locationError: String?
+    let clashStatus: ClashStatus
+    let copied: Bool
+    let copyAction: () -> Void
+    let language: AppLanguage
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(spacing: 8) {
+                Text("◇")
+                    .foregroundStyle(.cyan)
+                Text("IP / Proxy")
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.purple.opacity(0.86))
+                Rectangle()
+                    .fill(.secondary.opacity(0.18))
+                    .frame(height: 1)
+            }
+            .font(.system(.headline, design: .monospaced))
+
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(LocalizedCopy.text(.publicIP, language: language))
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                    Text(ipText)
+                        .font(.system(.body, design: .monospaced))
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
+                        .textSelection(.enabled)
+                }
+                Spacer()
+                Button(action: copyAction) {
+                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                .buttonStyle(.borderless)
+                .disabled(location == nil)
+            }
+
+            CompactStatusLine(
+                title: LocalizedCopy.text(.location, language: language),
+                value: locationText
+            )
+            CompactStatusLine(
+                title: LocalizedCopy.text(.clashVerge, language: language),
+                value: clashStatus.isRunning
+                    ? LocalizedCopy.text(.running, language: language)
+                    : LocalizedCopy.text(.stopped, language: language)
+            )
+            CompactStatusLine(
+                title: LocalizedCopy.text(.systemProxy, language: language),
+                value: clashStatus.systemProxyEnabled
+                    ? LocalizedCopy.text(.on, language: language)
+                    : LocalizedCopy.text(.off, language: language)
+            )
+            CompactStatusLine(
+                title: LocalizedCopy.text(.node, language: language),
+                value: clashStatus.selectedNode ?? LocalizedCopy.text(.unavailable, language: language)
+            )
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 182, alignment: .topLeading)
+        .background(.black.opacity(0.16), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(.primary.opacity(0.08), lineWidth: 1)
+        }
+    }
+
+    private var ipText: String {
+        if let location {
+            return location.ipAddress
+        }
+        return isLoading ? LocalizedCopy.text(.loading, language: language) : LocalizedCopy.text(.unavailable, language: language)
+    }
+
+    private var locationText: String {
+        if let location, !location.displayLocation.isEmpty {
+            return location.displayLocation
+        }
+        if isLoading {
+            return LocalizedCopy.text(.loading, language: language)
+        }
+        return locationError ?? LocalizedCopy.text(.unavailable, language: language)
     }
 }
 
