@@ -9,10 +9,13 @@ final class StatusBarController: NSObject {
     private let ipGeolocationStore: IPGeolocationStore
     private let clashStatusStore: ClashStatusStore
     private let statusItem: NSStatusItem
-    private let panelSize = NSSize(width: 760, height: 700)
     private lazy var panel = makePanel()
     private var cancellables = Set<AnyCancellable>()
     private var eventMonitors: [Any] = []
+
+    private var currentPanelSize: NSSize {
+        displaySettings.panelStyle.panelSize
+    }
 
     init(
         metricsStore: MetricsStore,
@@ -55,7 +58,7 @@ final class StatusBarController: NSObject {
 
     private func makePanel() -> NSPanel {
         let panel = NSPanel(
-            contentRect: NSRect(origin: .zero, size: panelSize),
+            contentRect: NSRect(origin: .zero, size: currentPanelSize),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -64,13 +67,12 @@ final class StatusBarController: NSObject {
         panel.backgroundColor = .clear
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
         panel.contentViewController = NSHostingController(
-            rootView: MonitorPopoverView(
+            rootView: MonitorPanelRootView(
                 metricsStore: metricsStore,
                 displaySettings: displaySettings,
                 ipGeolocationStore: ipGeolocationStore,
                 clashStatusStore: clashStatusStore
             )
-                .frame(width: panelSize.width, height: panelSize.height)
         )
         panel.hasShadow = true
         panel.hidesOnDeactivate = false
@@ -116,6 +118,14 @@ final class StatusBarController: NSObject {
             .sink { [weak self] _ in
                 guard let self else { return }
                 self.updateStatusItem(self.metricsStore.snapshot)
+            }
+            .store(in: &cancellables)
+
+        displaySettings.$panelStyle
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.resizePanelForCurrentStyle()
             }
             .store(in: &cancellables)
     }
@@ -212,9 +222,20 @@ final class StatusBarController: NSObject {
     }
 
     private func showPanel(relativeTo button: NSStatusBarButton) {
-        let frame = NSRect(origin: panelOrigin(relativeTo: button), size: panelSize)
+        let size = currentPanelSize
+        let frame = NSRect(origin: panelOrigin(relativeTo: button, size: size), size: size)
         panel.setFrame(frame, display: true)
         panel.orderFrontRegardless()
+    }
+
+    private func resizePanelForCurrentStyle() {
+        guard panel.isVisible, let button = statusItem.button else {
+            return
+        }
+
+        let size = currentPanelSize
+        let frame = NSRect(origin: panelOrigin(relativeTo: button, size: size), size: size)
+        panel.setFrame(frame, display: true)
     }
 
     private func closePanel() {
@@ -242,24 +263,24 @@ final class StatusBarController: NSObject {
         closePanel()
     }
 
-    private func panelOrigin(relativeTo button: NSStatusBarButton) -> NSPoint {
+    private func panelOrigin(relativeTo button: NSStatusBarButton, size: NSSize) -> NSPoint {
         let buttonFrame = screenFrame(for: button)
         let screen = button.window?.screen ?? NSScreen.main
         let visibleFrame = screen?.visibleFrame ?? buttonFrame
         let margin: CGFloat = 8
 
-        var x = buttonFrame.midX - panelSize.width / 2
-        var y = buttonFrame.minY - panelSize.height - margin
+        var x = buttonFrame.midX - size.width / 2
+        var y = buttonFrame.minY - size.height - margin
 
-        x = min(max(x, visibleFrame.minX + margin), visibleFrame.maxX - panelSize.width - margin)
-        y = min(max(y, visibleFrame.minY + margin), visibleFrame.maxY - panelSize.height - margin)
+        x = min(max(x, visibleFrame.minX + margin), visibleFrame.maxX - size.width - margin)
+        y = min(max(y, visibleFrame.minY + margin), visibleFrame.maxY - size.height - margin)
 
         return NSPoint(x: x, y: y)
     }
 
     private func screenFrame(for button: NSStatusBarButton) -> NSRect {
         guard let window = button.window else {
-            return NSRect(origin: .zero, size: panelSize)
+            return NSRect(origin: .zero, size: currentPanelSize)
         }
 
         let frameInWindow = button.convert(button.bounds, to: nil)
@@ -282,5 +303,36 @@ final class StatusBarController: NSObject {
 private extension Set where Element == MonitorMetric {
     func sortedForDisplay() -> [MonitorMetric] {
         MonitorMetric.configurableCases.filter { contains($0) }
+    }
+}
+
+private struct MonitorPanelRootView: View {
+    @ObservedObject var metricsStore: MetricsStore
+    @ObservedObject var displaySettings: DisplaySettings
+    @ObservedObject var ipGeolocationStore: IPGeolocationStore
+    @ObservedObject var clashStatusStore: ClashStatusStore
+
+    var body: some View {
+        MonitorPopoverView(
+            metricsStore: metricsStore,
+            displaySettings: displaySettings,
+            ipGeolocationStore: ipGeolocationStore,
+            clashStatusStore: clashStatusStore
+        )
+        .frame(
+            width: displaySettings.panelStyle.panelSize.width,
+            height: displaySettings.panelStyle.panelSize.height
+        )
+    }
+}
+
+private extension PanelStyle {
+    var panelSize: NSSize {
+        switch self {
+        case .native:
+            return NSSize(width: 420, height: 740)
+        case .terminal:
+            return NSSize(width: 760, height: 700)
+        }
     }
 }

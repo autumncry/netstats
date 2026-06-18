@@ -180,6 +180,26 @@ private func testSwiftPackageNameUsesNetStatsCasing() {
     expect(packageText.contains(#"name: "NetStats""#), "SwiftPM package name should be NetStats")
 }
 
+@MainActor
+private func testPanelStyleDefaultsToNativeAndPersistsTerminalChoice() {
+    let suiteName = "netstats-panel-style-tests-\(UUID().uuidString)"
+    guard let defaults = UserDefaults(suiteName: suiteName) else {
+        fputs("FAIL: test defaults should be created\n", stderr)
+        Foundation.exit(1)
+    }
+    defer {
+        defaults.removePersistentDomain(forName: suiteName)
+    }
+
+    let settings = DisplaySettings(defaults: defaults)
+    expect(settings.panelStyle == .native, "panel style should default to the original native style")
+
+    settings.panelStyle = .terminal
+
+    let reloaded = DisplaySettings(defaults: defaults)
+    expect(reloaded.panelStyle == .terminal, "panel style should persist terminal selection")
+}
+
 private func testProcessPSParserBuildsTopCPUAndMemoryProcesses() {
     let output = """
       101  42.5   4.2  700000 /Applications/Foo.app/Contents/MacOS/Foo
@@ -213,6 +233,9 @@ testScutilParserTreatsPACAsEnabled()
 testClashProfileParserExtractsCurrentRemoteTraffic()
 testAppBundleDeclaresInstallableIcon()
 testSwiftPackageNameUsesNetStatsCasing()
+await MainActor.run {
+    testPanelStyleDefaultsToNativeAndPersistsTerminalChoice()
+}
 testProcessPSParserBuildsTopCPUAndMemoryProcesses()
 testProcessMetricSamplerReadsLiveMemoryProcesses()
 

@@ -1,11 +1,11 @@
 import Combine
 import Foundation
 
-enum AppLanguage: String, CaseIterable, Identifiable {
+public enum AppLanguage: String, CaseIterable, Identifiable {
     case english
     case simplifiedChinese
 
-    var id: String { rawValue }
+    public var id: String { rawValue }
 
     var displayName: String {
         switch self {
@@ -17,7 +17,33 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     }
 }
 
-enum MonitorMetric: String, CaseIterable, Identifiable {
+public enum PanelStyle: String, CaseIterable, Identifiable {
+    case native
+    case terminal
+
+    public var id: String { rawValue }
+
+    func title(language: AppLanguage) -> String {
+        switch language {
+        case .english:
+            switch self {
+            case .native:
+                return "Native"
+            case .terminal:
+                return "Terminal"
+            }
+        case .simplifiedChinese:
+            switch self {
+            case .native:
+                return "原生"
+            case .terminal:
+                return "终端"
+            }
+        }
+    }
+}
+
+public enum MonitorMetric: String, CaseIterable, Identifiable {
     case cpu
     case memory
     case download
@@ -27,7 +53,7 @@ enum MonitorMetric: String, CaseIterable, Identifiable {
     case compressedMemory
     case cachedMemory
 
-    var id: String { rawValue }
+    public var id: String { rawValue }
 
     static var configurableCases: [MonitorMetric] {
         allCases.filter { $0 != .interfaces }
@@ -98,7 +124,7 @@ enum MonitorMetric: String, CaseIterable, Identifiable {
 }
 
 @MainActor
-final class DisplaySettings: ObservableObject {
+public final class DisplaySettings: ObservableObject {
     @Published var statusBarMetrics: Set<MonitorMetric> {
         didSet {
             save(statusBarMetrics, forKey: Self.statusBarKey)
@@ -117,12 +143,19 @@ final class DisplaySettings: ObservableObject {
         }
     }
 
+    @Published public var panelStyle: PanelStyle {
+        didSet {
+            defaults.set(panelStyle.rawValue, forKey: Self.panelStyleKey)
+        }
+    }
+
     private static let statusBarKey = "display.statusBarMetrics"
     private static let hoverKey = "display.hoverMetrics"
     private static let languageKey = "display.language"
+    private static let panelStyleKey = "display.panelStyle"
     private let defaults: UserDefaults
 
-    init(defaults: UserDefaults = .standard) {
+    public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         statusBarMetrics = Self.readMetrics(
             from: defaults,
@@ -135,6 +168,7 @@ final class DisplaySettings: ObservableObject {
             fallback: Set(MonitorMetric.configurableCases)
         )
         language = Self.readLanguage(from: defaults)
+        panelStyle = Self.readPanelStyle(from: defaults)
     }
 
     func binding(for metric: MonitorMetric, inStatusBar: Bool) -> Bool {
@@ -182,6 +216,15 @@ final class DisplaySettings: ObservableObject {
 
         return language
     }
+
+    private static func readPanelStyle(from defaults: UserDefaults) -> PanelStyle {
+        guard let rawValue = defaults.string(forKey: panelStyleKey),
+              let panelStyle = PanelStyle(rawValue: rawValue) else {
+            return .native
+        }
+
+        return panelStyle
+    }
 }
 
 enum LocalizedCopy {
@@ -228,6 +271,7 @@ enum LocalizedCopy {
         case processMetricsUnavailable
         case settings
         case statusBarAndHover
+        case style
         case systemMonitor
         case advanced
         case clashVerge
@@ -286,6 +330,7 @@ enum LocalizedCopy {
         .processMetricsUnavailable: "Process metrics unavailable",
         .settings: "Settings",
         .statusBarAndHover: "Status bar and hover",
+        .style: "Style",
         .systemMonitor: "NetStats",
         .advanced: "Advanced",
         .clashVerge: "Clash Verge Dev",
@@ -344,6 +389,7 @@ enum LocalizedCopy {
         .processMetricsUnavailable: "进程指标不可用",
         .settings: "设置",
         .statusBarAndHover: "状态栏和悬停显示",
+        .style: "界面风格",
         .systemMonitor: "NetStats",
         .advanced: "高级信息",
         .clashVerge: "Clash Verge Dev",

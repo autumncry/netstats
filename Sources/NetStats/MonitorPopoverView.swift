@@ -23,18 +23,9 @@ struct MonitorPopoverView: View {
                 settingsPage(snapshot)
             }
         }
-        .padding(18)
+        .padding(panelPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.10, green: 0.11, blue: 0.13),
-                    Color(red: 0.035, green: 0.04, blue: 0.045)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
+        .background { panelBackground }
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -43,6 +34,106 @@ struct MonitorPopoverView: View {
     }
 
     private func monitorPage(_ snapshot: SystemSnapshot, processes: ProcessSnapshot) -> some View {
+        Group {
+            switch displaySettings.panelStyle {
+            case .native:
+                nativeMonitorPage(snapshot)
+            case .terminal:
+                terminalMonitorPage(snapshot, processes: processes)
+            }
+        }
+    }
+
+    private func nativeMonitorPage(_ snapshot: SystemSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            header(
+                title: text(.systemMonitor),
+                subtitle: Text(snapshot.timestamp, style: .time),
+                buttonImage: "gearshape",
+                buttonAction: { page = .settings }
+            )
+            Divider()
+
+            SectionHeader(title: text(.hardware), systemImage: "desktopcomputer")
+
+            MetricGauge(
+                title: "CPU",
+                systemImage: "cpu",
+                value: snapshot.cpuUsage,
+                valueText: percent(snapshot.cpuUsage),
+                tint: .blue
+            )
+
+            CompactValueRow(
+                title: text(.gpu),
+                systemImage: "display",
+                value: gpuName
+            )
+
+            MetricGauge(
+                title: text(.memoryLoad),
+                systemImage: "memorychip",
+                value: snapshot.memory.pressure,
+                valueText: percent(snapshot.memory.pressure),
+                tint: .green,
+                accessory: {
+                    Button(action: openActivityMonitor) {
+                        Image(systemName: "arrow.up.forward.app")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .buttonStyle(.borderless)
+                    .help(text(.activityMonitor))
+                }
+            )
+
+            CompactValueRow(
+                title: text(.used),
+                systemImage: "chart.pie",
+                value: "\(ByteFormatter.memory(snapshot.memory.usedBytes)) / \(ByteFormatter.memory(snapshot.memory.totalBytes))"
+            )
+
+            CompactValueRow(
+                title: text(.cached),
+                systemImage: "externaldrive",
+                value: ByteFormatter.memory(snapshot.memory.cachedBytes)
+            )
+
+            CompactValueRow(
+                title: text(.compressed),
+                systemImage: "archivebox",
+                value: ByteFormatter.memory(snapshot.memory.compressedBytes)
+            )
+
+            Divider()
+
+            SectionHeader(title: text(.network), systemImage: "network")
+
+            PublicIPAddressRow(
+                publicLocation: ipGeolocationStore.location,
+                isLoadingLocation: ipGeolocationStore.isLoading,
+                locationError: ipGeolocationStore.errorMessage,
+                language: displaySettings.language,
+                copied: copiedIPAddress,
+                copyAction: copyPublicIPAddress
+            )
+
+            ClashStatusView(
+                status: clashStatusStore.status,
+                language: displaySettings.language
+            )
+
+            NetworkSpeedSection(
+                download: snapshot.network.downloadBytesPerSecond,
+                upload: snapshot.network.uploadBytesPerSecond,
+                language: displaySettings.language
+            )
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    private func terminalMonitorPage(_ snapshot: SystemSnapshot, processes: ProcessSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             TerminalHeader(
                 snapshot: snapshot,
@@ -130,6 +221,26 @@ struct MonitorPopoverView: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
+    private var panelPadding: CGFloat {
+        page == .monitor && displaySettings.panelStyle == .terminal ? 18 : 16
+    }
+
+    @ViewBuilder
+    private var panelBackground: some View {
+        if page == .monitor && displaySettings.panelStyle == .terminal {
+            LinearGradient(
+                colors: [
+                    Color(red: 0.10, green: 0.11, blue: 0.13),
+                    Color(red: 0.035, green: 0.04, blue: 0.045)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        } else {
+            Color.clear.background(.regularMaterial)
+        }
+    }
+
     private func settingsPage(_ snapshot: SystemSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             header(
@@ -154,6 +265,23 @@ struct MonitorPopoverView: View {
                 .labelsHidden()
                 .pickerStyle(.segmented)
                 .frame(width: 150)
+            }
+
+            Divider()
+
+            HStack {
+                Label(text(.style), systemImage: "square.grid.2x2")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Picker("", selection: $displaySettings.panelStyle) {
+                    ForEach(PanelStyle.allCases) { style in
+                        Text(style.title(language: displaySettings.language))
+                            .tag(style)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .frame(width: 170)
             }
 
             Divider()
