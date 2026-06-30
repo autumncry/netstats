@@ -49,41 +49,43 @@ struct MonitorPopoverView: View {
         history: MetricHistory,
         processes: ProcessSnapshot
     ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            header(
-                title: text(.systemMonitor),
-                subtitle: Text(snapshot.timestamp, style: .time),
-                buttonImage: "gearshape",
-                buttonAction: { page = .settings }
-            )
-            Divider()
-
-            if moduleEnabled(.hardware) {
-                hardwareSection(snapshot, history: history, processes: processes)
-            }
-
-            if moduleEnabled(.disk) {
-                Divider()
-                diskSection(snapshot, history: history, processes: processes)
-            }
-
-            if moduleEnabled(.network) {
-                Divider()
-                networkSection(snapshot, history: history, processes: processes)
-            }
-
-            if moduleEnabled(.clash) {
-                Divider()
-                SectionHeader(title: text(.clashVerge), systemImage: "shield.lefthalf.filled")
-                ClashStatusView(
-                    status: clashStatusStore.status,
-                    language: displaySettings.language
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 10) {
+                header(
+                    title: text(.systemMonitor),
+                    subtitle: Text(snapshot.timestamp, style: .time),
+                    buttonImage: "gearshape",
+                    buttonAction: { page = .settings }
                 )
-            }
+                Divider()
 
-            Spacer(minLength: 0)
+                if moduleEnabled(.hardware) {
+                    hardwareSection(snapshot, history: history, processes: processes)
+                }
+
+                if moduleEnabled(.disk) {
+                    Divider()
+                    diskSection(snapshot, history: history, processes: processes)
+                }
+
+                if moduleEnabled(.network) {
+                    Divider()
+                    networkSection(snapshot, history: history, processes: processes)
+                }
+
+                if moduleEnabled(.clash) {
+                    Divider()
+                    SectionHeader(title: text(.clashVerge), systemImage: "shield.lefthalf.filled")
+                    ClashStatusView(
+                        status: clashStatusStore.status,
+                        language: displaySettings.language
+                    )
+                }
+
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     @ViewBuilder
