@@ -2,6 +2,7 @@
 
 # SwiftPM
 .build/
+.worktrees/
 
 # Local app and release artifacts
 build/
