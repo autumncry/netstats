@@ -43,6 +43,55 @@ public enum PanelStyle: String, CaseIterable, Identifiable {
     }
 }
 
+public enum MonitorModule: String, CaseIterable, Identifiable {
+    case hardware
+    case disk
+    case network
+    case clash
+
+    public var id: String { rawValue }
+
+    func title(language: AppLanguage) -> String {
+        switch language {
+        case .english:
+            switch self {
+            case .hardware:
+                return "Hardware"
+            case .disk:
+                return "Disk"
+            case .network:
+                return "Network"
+            case .clash:
+                return "Clash"
+            }
+        case .simplifiedChinese:
+            switch self {
+            case .hardware:
+                return "硬件"
+            case .disk:
+                return "硬盘"
+            case .network:
+                return "网络"
+            case .clash:
+                return "Clash"
+            }
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .hardware:
+            return "desktopcomputer"
+        case .disk:
+            return "externaldrive"
+        case .network:
+            return "network"
+        case .clash:
+            return "shield.lefthalf.filled"
+        }
+    }
+}
+
 public enum MonitorMetric: String, CaseIterable, Identifiable {
     case cpu
     case memory
@@ -149,10 +198,38 @@ public final class DisplaySettings: ObservableObject {
         }
     }
 
+    @Published public var monitorModules: Set<MonitorModule> {
+        didSet {
+            save(monitorModules, forKey: Self.monitorModulesKey)
+        }
+    }
+
+    @Published public var publicIPLookupEnabled: Bool {
+        didSet {
+            defaults.set(publicIPLookupEnabled, forKey: Self.publicIPLookupEnabledKey)
+        }
+    }
+
+    @Published public var showHistory: Bool {
+        didSet {
+            defaults.set(showHistory, forKey: Self.showHistoryKey)
+        }
+    }
+
+    @Published public var showProcessRanks: Bool {
+        didSet {
+            defaults.set(showProcessRanks, forKey: Self.showProcessRanksKey)
+        }
+    }
+
     private static let statusBarKey = "display.statusBarMetrics"
     private static let hoverKey = "display.hoverMetrics"
     private static let languageKey = "display.language"
     private static let panelStyleKey = "display.panelStyle"
+    private static let monitorModulesKey = "display.monitorModules"
+    private static let publicIPLookupEnabledKey = "privacy.publicIPLookupEnabled"
+    private static let showHistoryKey = "display.showHistory"
+    private static let showProcessRanksKey = "display.showProcessRanks"
     private let defaults: UserDefaults
 
     public init(defaults: UserDefaults = .standard) {
@@ -169,6 +246,14 @@ public final class DisplaySettings: ObservableObject {
         )
         language = Self.readLanguage(from: defaults)
         panelStyle = Self.readPanelStyle(from: defaults)
+        monitorModules = Self.readModules(from: defaults)
+        publicIPLookupEnabled = Self.readBool(
+            from: defaults,
+            key: Self.publicIPLookupEnabledKey,
+            fallback: true
+        )
+        showHistory = Self.readBool(from: defaults, key: Self.showHistoryKey, fallback: true)
+        showProcessRanks = Self.readBool(from: defaults, key: Self.showProcessRanksKey, fallback: true)
     }
 
     func binding(for metric: MonitorMetric, inStatusBar: Bool) -> Bool {
@@ -183,6 +268,18 @@ public final class DisplaySettings: ObservableObject {
         }
     }
 
+    public func binding(for module: MonitorModule) -> Bool {
+        monitorModules.contains(module)
+    }
+
+    public func set(_ isVisible: Bool, module: MonitorModule) {
+        if isVisible {
+            monitorModules.insert(module)
+        } else {
+            monitorModules.remove(module)
+        }
+    }
+
     private func update(_ metrics: inout Set<MonitorMetric>, metric: MonitorMetric, isVisible: Bool) {
         if isVisible {
             metrics.insert(metric)
@@ -191,8 +288,8 @@ public final class DisplaySettings: ObservableObject {
         }
     }
 
-    private func save(_ metrics: Set<MonitorMetric>, forKey key: String) {
-        defaults.set(metrics.map(\.rawValue).sorted(), forKey: key)
+    private func save<T: RawRepresentable>(_ values: Set<T>, forKey key: String) where T.RawValue == String {
+        defaults.set(values.map(\.rawValue).sorted(), forKey: key)
     }
 
     private static func readMetrics(
@@ -206,6 +303,22 @@ public final class DisplaySettings: ObservableObject {
 
         let metrics = Set(rawValues.compactMap(MonitorMetric.init(rawValue:)))
         return metrics
+    }
+
+    private static func readModules(from defaults: UserDefaults) -> Set<MonitorModule> {
+        guard let rawValues = defaults.array(forKey: monitorModulesKey) as? [String] else {
+            return Set(MonitorModule.allCases)
+        }
+
+        let modules = Set(rawValues.compactMap(MonitorModule.init(rawValue:)))
+        return modules.isEmpty ? Set(MonitorModule.allCases) : modules
+    }
+
+    private static func readBool(from defaults: UserDefaults, key: String, fallback: Bool) -> Bool {
+        guard defaults.object(forKey: key) != nil else {
+            return fallback
+        }
+        return defaults.bool(forKey: key)
     }
 
     private static func readLanguage(from defaults: UserDefaults) -> AppLanguage {
@@ -278,13 +391,19 @@ enum LocalizedCopy {
         case controller
         case direct
         case global
+        case localOnly
         case mode
+        case modules
         case node
         case off
         case on
+        case power
+        case processRanks
         case proxyGroup
         case rule
         case running
+        case sessionTotal
+        case showHistory
         case subscription
         case systemProxy
         case trafficUsage
@@ -337,13 +456,19 @@ enum LocalizedCopy {
         .controller: "Controller",
         .direct: "Direct",
         .global: "Global",
+        .localOnly: "Local-only",
         .mode: "Mode",
+        .modules: "Modules",
         .node: "Node",
         .off: "Off",
         .on: "On",
+        .power: "Power",
+        .processRanks: "Process ranks",
         .proxyGroup: "Proxy Group",
         .rule: "Rule",
         .running: "Running",
+        .sessionTotal: "Session",
+        .showHistory: "History",
         .subscription: "Subscription",
         .systemProxy: "System Proxy",
         .trafficUsage: "Traffic",
@@ -396,13 +521,19 @@ enum LocalizedCopy {
         .controller: "控制接口",
         .direct: "直连",
         .global: "全局",
+        .localOnly: "本地优先",
         .mode: "模式",
+        .modules: "模块",
         .node: "节点",
         .off: "关闭",
         .on: "开启",
+        .power: "电源",
+        .processRanks: "进程排行",
         .proxyGroup: "代理组",
         .rule: "规则",
         .running: "运行中",
+        .sessionTotal: "本次会话",
+        .showHistory: "历史趋势",
         .subscription: "订阅",
         .systemProxy: "系统代理",
         .trafficUsage: "订阅流量",

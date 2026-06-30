@@ -10,6 +10,9 @@ Use this checklist before publishing a new NetStats release.
 - [ ] Run `scripts/package_app.sh`.
 - [ ] Run `scripts/package_dmg.sh`.
 - [ ] Confirm `dist/NetStats-X.Y.Z.dmg` exists.
+- [ ] Confirm `dist/NetStats-X.Y.Z.dmg.sha256` exists.
+- [ ] If signing is available, set `NETSTATS_CODESIGN_IDENTITY` before packaging.
+- [ ] If notarization is available, set `NETSTATS_NOTARY_PROFILE` before packaging and confirm stapling succeeds.
 
 ## Install Verification
 
@@ -32,6 +35,7 @@ Use this checklist before publishing a new NetStats release.
 
 - [ ] Create or update the GitHub Release.
 - [ ] Upload the DMG asset.
+- [ ] Upload the `.sha256` asset.
 - [ ] Use the release notes file as the release body.
 - [ ] Confirm GitHub Pages still deploys successfully.
 - [ ] Confirm CI passes on `main`.
@@ -43,4 +47,3 @@ Use this checklist before publishing a new NetStats release.
 - [ ] Share the website link first: `https://autumncry.github.io/netstats/`.
 - [ ] Mention Homebrew and DMG install options.
 - [ ] Ask for feedback first, then mention starring as a lightweight close.
-

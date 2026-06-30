@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 final class MetricsStore: ObservableObject {
     @Published private(set) var snapshot = SystemSnapshot.empty
+    @Published private(set) var history = MetricHistory()
     @Published private(set) var processSnapshot = ProcessSnapshot.empty
 
     private let systemSampler = SystemSampler()
@@ -43,7 +44,9 @@ final class MetricsStore: ObservableObject {
     }
 
     private func refreshSystem() {
-        snapshot = systemSampler.sample()
+        let nextSnapshot = systemSampler.sample()
+        snapshot = nextSnapshot
+        history.append(nextSnapshot)
     }
 
     private func refreshProcesses() {

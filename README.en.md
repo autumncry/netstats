@@ -84,16 +84,21 @@ The npm installer downloads the matching GitHub Release DMG and opens it. It doe
 
 - CPU usage in the menu bar and detail panel
 - Memory load, used memory, cached memory, and compressed memory
-- Network upload and download speed
+- Disk capacity, disk read/write speed, power state, network upload/download speed, and session traffic totals
+- Top process lists for CPU, memory, disk, and network categories; categories that are not exposed by stable public APIs show a clear unavailable reason
+- Short history trends for CPU, memory, network, and disk activity
 - Public IPv4 address, geolocation, and one-click copy
 - Clash Verge Dev status: running state, system proxy state, TUN state, rule/global/direct mode, subscription used/total traffic, proxy group, and selected node
-- Configurable menu bar and hover metrics
+- Configurable menu bar and hover metrics, plus panel modules for hardware, disk, network, and Clash status
+- Optional local-first mode by disabling public IP and geolocation lookup
 - Native macOS AppKit + SwiftUI UI
 - English and Chinese interface
 
 ## Privacy
 
-System metrics, network speed, and Clash Verge Dev status are read and processed locally on your Mac and are never sent to any NetStats-owned server. Clash Verge Dev status display only reads local configuration, the local Mihomo controller, and macOS system proxy state. Public IP and geolocation lookup uses `ipinfo.io` to resolve the current public egress address; if you do not need this information, you can block that request with a firewall or network filtering tool.
+System metrics, network speed, process ranking, and Clash Verge Dev status are read and processed locally on your Mac and are never sent to any NetStats-owned server. Clash Verge Dev status display only reads local configuration, the local Mihomo controller, and macOS system proxy state. Public IP and geolocation lookup uses `ipinfo.io` to resolve the current public egress address; if you do not need this information, you can disable public IP location lookup in settings.
+
+See [Privacy](docs/PRIVACY.md) and [Permissions](docs/PERMISSIONS.md) for details.
 
 ## FAQ
 
@@ -142,6 +147,8 @@ open dist
 - [Changelog](CHANGELOG.md): release notes
 - [Release Notes](docs/release-notes/v1.0.0.md): current release notes
 - [Release Checklist](docs/release-checklist.md): checklist for future releases
+- [Privacy](docs/PRIVACY.md): data boundaries, external requests, and local-first behavior
+- [Permissions](docs/PERMISSIONS.md): current permission model and intentionally limited metrics
 - [Product Growth](docs/product-growth.md): product improvements and SEO growth plan
 - [Contributing](CONTRIBUTING.md): development setup, PR expectations, and privacy notes
 - [Security](SECURITY.md): security and privacy reporting

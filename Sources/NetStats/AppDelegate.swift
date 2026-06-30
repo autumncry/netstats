@@ -28,7 +28,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             clashStatusStore: clashStatusStore
         )
         metricsStore.start()
-        ipGeolocationStore.start()
+        ipGeolocationStore.start(lookupEnabled: displaySettings.publicIPLookupEnabled)
         clashStatusStore.start()
     }
 

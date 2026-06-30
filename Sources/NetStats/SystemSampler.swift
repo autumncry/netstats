@@ -1,10 +1,16 @@
 import Darwin
 import Foundation
+import IOKit
+import IOKit.ps
 
 final class SystemSampler {
     private var previousCPUInfo: [integer_t]?
     private var previousNetworkCounters: NetworkCounters?
     private var previousNetworkUptime: TimeInterval?
+    private var previousDiskCounters: DiskCounters?
+    private var previousDiskUptime: TimeInterval?
+    private var sessionDownloadedBytes: UInt64 = 0
+    private var sessionUploadedBytes: UInt64 = 0
 
     func sample() -> SystemSnapshot {
         SystemSnapshot(
@@ -12,7 +18,8 @@ final class SystemSampler {
             cpuUsage: readCPUUsage(),
             memory: readMemory(),
             disk: readDisk(),
-            network: readNetwork()
+            network: readNetwork(),
+            power: readPower()
         )
     }
 
@@ -143,6 +150,8 @@ final class SystemSampler {
             return NetworkSnapshot(
                 downloadBytesPerSecond: 0,
                 uploadBytesPerSecond: 0,
+                sessionDownloadedBytes: sessionDownloadedBytes,
+                sessionUploadedBytes: sessionUploadedBytes,
                 activeInterfaces: current.activeInterfaces,
                 ipv4Addresses: current.ipv4Addresses
             )
@@ -156,15 +165,22 @@ final class SystemSampler {
             ? current.sentBytes - previousNetworkCounters.sentBytes
             : 0
 
+        sessionDownloadedBytes += receivedDelta
+        sessionUploadedBytes += sentDelta
+
         return NetworkSnapshot(
             downloadBytesPerSecond: Double(receivedDelta) / elapsed,
             uploadBytesPerSecond: Double(sentDelta) / elapsed,
+            sessionDownloadedBytes: sessionDownloadedBytes,
+            sessionUploadedBytes: sessionUploadedBytes,
             activeInterfaces: current.activeInterfaces,
             ipv4Addresses: current.ipv4Addresses
         )
     }
 
     private func readDisk() -> DiskSnapshot {
+        let activity = readDiskActivity()
+
         do {
             let values = try URL(fileURLWithPath: "/").resourceValues(forKeys: [
                 .volumeTotalCapacityKey,
@@ -178,11 +194,99 @@ final class SystemSampler {
             return DiskSnapshot(
                 usedBytes: used,
                 totalBytes: total,
-                freeBytes: free
+                freeBytes: free,
+                readBytesPerSecond: activity.readBytesPerSecond,
+                writeBytesPerSecond: activity.writeBytesPerSecond
             )
         } catch {
-            return DiskSnapshot(usedBytes: 0, totalBytes: 0, freeBytes: 0)
+            return DiskSnapshot(
+                usedBytes: 0,
+                totalBytes: 0,
+                freeBytes: 0,
+                readBytesPerSecond: activity.readBytesPerSecond,
+                writeBytesPerSecond: activity.writeBytesPerSecond
+            )
         }
+    }
+
+    private func readDiskActivity() -> (readBytesPerSecond: Double, writeBytesPerSecond: Double) {
+        let current = DiskCounters.read()
+        let uptime = ProcessInfo.processInfo.systemUptime
+        defer {
+            previousDiskCounters = current
+            previousDiskUptime = uptime
+        }
+
+        guard let current, let previousDiskCounters, let previousDiskUptime else {
+            return (0, 0)
+        }
+
+        let elapsed = max(uptime - previousDiskUptime, 0.1)
+        let readDelta = current.readBytes >= previousDiskCounters.readBytes
+            ? current.readBytes - previousDiskCounters.readBytes
+            : 0
+        let writeDelta = current.writeBytes >= previousDiskCounters.writeBytes
+            ? current.writeBytes - previousDiskCounters.writeBytes
+            : 0
+
+        return (
+            Double(readDelta) / elapsed,
+            Double(writeDelta) / elapsed
+        )
+    }
+
+    private func readPower() -> PowerSnapshot {
+        guard let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue() else {
+            return PowerSnapshot(source: .unknown, batteryPercent: nil, isCharging: false)
+        }
+
+        let sourceType = IOPSGetProvidingPowerSourceType(info)?.takeUnretainedValue() as String?
+        let source: PowerSourceKind
+        switch sourceType {
+        case kIOPSACPowerValue:
+            source = .acPower
+        case kIOPSBatteryPowerValue:
+            source = .battery
+        default:
+            source = .unknown
+        }
+
+        guard let list = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef], !list.isEmpty else {
+            return source == .unknown ? .noBattery : PowerSnapshot(source: source, batteryPercent: nil, isCharging: false)
+        }
+
+        for item in list {
+            guard let description = IOPSGetPowerSourceDescription(info, item)?
+                .takeUnretainedValue() as? [String: Any] else {
+                continue
+            }
+
+            let current = numberValue(description[kIOPSCurrentCapacityKey])
+            let maximum = numberValue(description[kIOPSMaxCapacityKey])
+            let percent: Double?
+            if let current, let maximum, maximum > 0 {
+                percent = min(max(current / maximum, 0), 1)
+            } else {
+                percent = nil
+            }
+            let isCharging = description[kIOPSIsChargingKey] as? Bool ?? false
+            return PowerSnapshot(source: source, batteryPercent: percent, isCharging: isCharging)
+        }
+
+        return PowerSnapshot(source: source, batteryPercent: nil, isCharging: false)
+    }
+
+    private func numberValue(_ value: Any?) -> Double? {
+        if let value = value as? Double {
+            return value
+        }
+        if let value = value as? Int {
+            return Double(value)
+        }
+        if let value = value as? NSNumber {
+            return value.doubleValue
+        }
+        return nil
     }
 }
 
@@ -317,5 +421,64 @@ private struct NetworkCounters {
             return 3
         }
         return 1
+    }
+}
+
+private struct DiskCounters {
+    let readBytes: UInt64
+    let writeBytes: UInt64
+
+    static func read() -> DiskCounters? {
+        guard let matching = IOServiceMatching("IOBlockStorageDriver") else {
+            return nil
+        }
+
+        var iterator: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == KERN_SUCCESS else {
+            return nil
+        }
+        defer {
+            IOObjectRelease(iterator)
+        }
+
+        var readBytes: UInt64 = 0
+        var writeBytes: UInt64 = 0
+
+        while true {
+            let service = IOIteratorNext(iterator)
+            if service == 0 {
+                break
+            }
+            defer {
+                IOObjectRelease(service)
+            }
+
+            guard let property = IORegistryEntryCreateCFProperty(
+                service,
+                "Statistics" as CFString,
+                kCFAllocatorDefault,
+                0
+            )?.takeRetainedValue() as? [String: Any] else {
+                continue
+            }
+
+            readBytes += uint64Value(property["Bytes (Read)"])
+            writeBytes += uint64Value(property["Bytes (Write)"])
+        }
+
+        return DiskCounters(readBytes: readBytes, writeBytes: writeBytes)
+    }
+
+    private static func uint64Value(_ value: Any?) -> UInt64 {
+        if let value = value as? UInt64 {
+            return value
+        }
+        if let value = value as? Int {
+            return UInt64(max(value, 0))
+        }
+        if let value = value as? NSNumber {
+            return value.uint64Value
+        }
+        return 0
     }
 }

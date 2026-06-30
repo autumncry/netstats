@@ -37,14 +37,18 @@ struct MonitorPopoverView: View {
         Group {
             switch displaySettings.panelStyle {
             case .native:
-                nativeMonitorPage(snapshot)
+                nativeMonitorPage(snapshot, history: metricsStore.history, processes: processes)
             case .terminal:
-                terminalMonitorPage(snapshot, processes: processes)
+                terminalMonitorPage(snapshot, history: metricsStore.history, processes: processes)
             }
         }
     }
 
-    private func nativeMonitorPage(_ snapshot: SystemSnapshot) -> some View {
+    private func nativeMonitorPage(
+        _ snapshot: SystemSnapshot,
+        history: MetricHistory,
+        processes: ProcessSnapshot
+    ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             header(
                 title: text(.systemMonitor),
@@ -54,86 +58,233 @@ struct MonitorPopoverView: View {
             )
             Divider()
 
-            SectionHeader(title: text(.hardware), systemImage: "desktopcomputer")
+            if moduleEnabled(.hardware) {
+                hardwareSection(snapshot, history: history, processes: processes)
+            }
 
-            MetricGauge(
-                title: "CPU",
-                systemImage: "cpu",
-                value: snapshot.cpuUsage,
-                valueText: percent(snapshot.cpuUsage),
-                tint: .blue
-            )
+            if moduleEnabled(.disk) {
+                Divider()
+                diskSection(snapshot, history: history, processes: processes)
+            }
 
-            CompactValueRow(
-                title: text(.gpu),
-                systemImage: "display",
-                value: gpuName
-            )
+            if moduleEnabled(.network) {
+                Divider()
+                networkSection(snapshot, history: history, processes: processes)
+            }
 
-            MetricGauge(
-                title: text(.memoryLoad),
-                systemImage: "memorychip",
-                value: snapshot.memory.pressure,
-                valueText: percent(snapshot.memory.pressure),
-                tint: .green,
-                accessory: {
-                    Button(action: openActivityMonitor) {
-                        Image(systemName: "arrow.up.forward.app")
-                            .font(.system(size: 13, weight: .semibold))
-                    }
-                    .buttonStyle(.borderless)
-                    .help(text(.activityMonitor))
-                }
-            )
-
-            CompactValueRow(
-                title: text(.used),
-                systemImage: "chart.pie",
-                value: "\(ByteFormatter.memory(snapshot.memory.usedBytes)) / \(ByteFormatter.memory(snapshot.memory.totalBytes))"
-            )
-
-            CompactValueRow(
-                title: text(.cached),
-                systemImage: "externaldrive",
-                value: ByteFormatter.memory(snapshot.memory.cachedBytes)
-            )
-
-            CompactValueRow(
-                title: text(.compressed),
-                systemImage: "archivebox",
-                value: ByteFormatter.memory(snapshot.memory.compressedBytes)
-            )
-
-            Divider()
-
-            SectionHeader(title: text(.network), systemImage: "network")
-
-            PublicIPAddressRow(
-                publicLocation: ipGeolocationStore.location,
-                isLoadingLocation: ipGeolocationStore.isLoading,
-                locationError: ipGeolocationStore.errorMessage,
-                language: displaySettings.language,
-                copied: copiedIPAddress,
-                copyAction: copyPublicIPAddress
-            )
-
-            ClashStatusView(
-                status: clashStatusStore.status,
-                language: displaySettings.language
-            )
-
-            NetworkSpeedSection(
-                download: snapshot.network.downloadBytesPerSecond,
-                upload: snapshot.network.uploadBytesPerSecond,
-                language: displaySettings.language
-            )
+            if moduleEnabled(.clash) {
+                Divider()
+                SectionHeader(title: text(.clashVerge), systemImage: "shield.lefthalf.filled")
+                ClashStatusView(
+                    status: clashStatusStore.status,
+                    language: displaySettings.language
+                )
+            }
 
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
-    private func terminalMonitorPage(_ snapshot: SystemSnapshot, processes: ProcessSnapshot) -> some View {
+    @ViewBuilder
+    private func hardwareSection(
+        _ snapshot: SystemSnapshot,
+        history: MetricHistory,
+        processes: ProcessSnapshot
+    ) -> some View {
+        SectionHeader(title: text(.hardware), systemImage: "desktopcomputer")
+
+        MetricGauge(
+            title: "CPU",
+            systemImage: "cpu",
+            value: snapshot.cpuUsage,
+            valueText: percent(snapshot.cpuUsage),
+            tint: .blue
+        )
+
+        if displaySettings.showHistory {
+            NativeHistoryStrip(
+                values: history.samples.map(\.cpuUsage),
+                tint: .blue,
+                label: "CPU"
+            )
+        }
+
+        if displaySettings.showProcessRanks {
+            NativeProcessTopList(
+                category: processes.cpu,
+                valueStyle: .percent,
+                language: displaySettings.language
+            )
+        }
+
+        CompactValueRow(
+            title: text(.gpu),
+            systemImage: "display",
+            value: gpuName
+        )
+
+        if displaySettings.showProcessRanks {
+            NativeProcessTopList(
+                category: processes.gpu,
+                valueStyle: .percent,
+                language: displaySettings.language
+            )
+        }
+
+        MetricGauge(
+            title: text(.memoryLoad),
+            systemImage: "memorychip",
+            value: snapshot.memory.pressure,
+            valueText: percent(snapshot.memory.pressure),
+            tint: .green,
+            accessory: {
+                Button(action: openActivityMonitor) {
+                    Image(systemName: "arrow.up.forward.app")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                .buttonStyle(.borderless)
+                .help(text(.activityMonitor))
+            }
+        )
+
+        if displaySettings.showHistory {
+            NativeHistoryStrip(
+                values: history.samples.map(\.memoryPressure),
+                tint: .green,
+                label: text(.memoryLoad)
+            )
+        }
+
+        if displaySettings.showProcessRanks {
+            NativeProcessTopList(
+                category: processes.memory,
+                valueStyle: .memory,
+                language: displaySettings.language
+            )
+        }
+
+        CompactValueRow(
+            title: text(.used),
+            systemImage: "chart.pie",
+            value: "\(ByteFormatter.memory(snapshot.memory.usedBytes)) / \(ByteFormatter.memory(snapshot.memory.totalBytes))"
+        )
+
+        CompactValueRow(
+            title: text(.cached),
+            systemImage: "externaldrive",
+            value: ByteFormatter.memory(snapshot.memory.cachedBytes)
+        )
+
+        CompactValueRow(
+            title: text(.compressed),
+            systemImage: "archivebox",
+            value: ByteFormatter.memory(snapshot.memory.compressedBytes)
+        )
+
+        CompactValueRow(
+            title: text(.power),
+            systemImage: "bolt",
+            value: powerText(snapshot.power)
+        )
+    }
+
+    @ViewBuilder
+    private func diskSection(
+        _ snapshot: SystemSnapshot,
+        history: MetricHistory,
+        processes: ProcessSnapshot
+    ) -> some View {
+        SectionHeader(title: text(.disk), systemImage: "externaldrive")
+
+        MetricGauge(
+            title: text(.used),
+            systemImage: "internaldrive",
+            value: snapshot.disk.usage,
+            valueText: diskUsageText(snapshot.disk),
+            tint: .orange
+        )
+
+        HStack(spacing: 12) {
+            CompactValueRow(
+                title: "Read",
+                systemImage: "arrow.down.to.line.compact",
+                value: ByteFormatter.speed(snapshot.disk.readBytesPerSecond)
+            )
+            CompactValueRow(
+                title: "Write",
+                systemImage: "arrow.up.to.line.compact",
+                value: ByteFormatter.speed(snapshot.disk.writeBytesPerSecond)
+            )
+        }
+
+        if displaySettings.showHistory {
+            NativeHistoryStrip(
+                values: history.samples.map { max($0.diskReadBytesPerSecond, $0.diskWriteBytesPerSecond) / 50_000_000 },
+                tint: .orange,
+                label: text(.showHistory)
+            )
+        }
+
+        if displaySettings.showProcessRanks {
+            NativeProcessTopList(
+                category: processes.disk,
+                valueStyle: .speed,
+                language: displaySettings.language
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func networkSection(
+        _ snapshot: SystemSnapshot,
+        history: MetricHistory,
+        processes: ProcessSnapshot
+    ) -> some View {
+        SectionHeader(title: text(.network), systemImage: "network")
+
+        PublicIPAddressRow(
+            publicLocation: ipGeolocationStore.location,
+            isLoadingLocation: ipGeolocationStore.isLoading,
+            locationError: ipGeolocationStore.errorMessage,
+            lookupEnabled: displaySettings.publicIPLookupEnabled,
+            language: displaySettings.language,
+            copied: copiedIPAddress,
+            copyAction: copyPublicIPAddress
+        )
+
+        NetworkSpeedSection(
+            download: snapshot.network.downloadBytesPerSecond,
+            upload: snapshot.network.uploadBytesPerSecond,
+            language: displaySettings.language
+        )
+
+        CompactValueRow(
+            title: text(.sessionTotal),
+            systemImage: "arrow.up.arrow.down",
+            value: "↓ \(ByteFormatter.memory(snapshot.network.sessionDownloadedBytes))  ↑ \(ByteFormatter.memory(snapshot.network.sessionUploadedBytes))"
+        )
+
+        if displaySettings.showHistory {
+            NativeHistoryStrip(
+                values: history.samples.map {
+                    max($0.networkDownloadBytesPerSecond, $0.networkUploadBytesPerSecond) / 10_000_000
+                },
+                tint: .cyan,
+                label: text(.showHistory)
+            )
+        }
+
+        if displaySettings.showProcessRanks {
+            NativeProcessTopList(
+                category: processes.network,
+                valueStyle: .speed,
+                language: displaySettings.language
+            )
+        }
+    }
+
+    private func terminalMonitorPage(_ snapshot: SystemSnapshot, history: MetricHistory, processes: ProcessSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             TerminalHeader(
                 snapshot: snapshot,
@@ -212,6 +363,7 @@ struct MonitorPopoverView: View {
                     isLoading: ipGeolocationStore.isLoading,
                     locationError: ipGeolocationStore.errorMessage,
                     clashStatus: clashStatusStore.status,
+                    lookupEnabled: displaySettings.publicIPLookupEnabled,
                     copied: copiedIPAddress,
                     copyAction: copyPublicIPAddress,
                     language: displaySettings.language
@@ -242,7 +394,8 @@ struct MonitorPopoverView: View {
     }
 
     private func settingsPage(_ snapshot: SystemSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 14) {
             header(
                 title: text(.display),
                 subtitle: Text(text(.statusBarAndHover)),
@@ -286,6 +439,42 @@ struct MonitorPopoverView: View {
 
             Divider()
 
+            SectionHeader(title: text(.modules), systemImage: "square.grid.2x2")
+
+            VStack(spacing: 9) {
+                ForEach(MonitorModule.allCases) { module in
+                    ModuleSettingRow(
+                        module: module,
+                        language: displaySettings.language,
+                        binding: binding(for: module)
+                    )
+                }
+            }
+
+            Divider()
+
+            SectionHeader(title: text(.display), systemImage: "eye")
+
+            VStack(spacing: 9) {
+                PreferenceToggleRow(
+                    title: text(.showHistory),
+                    systemImage: "waveform.path.ecg",
+                    binding: $displaySettings.showHistory
+                )
+                PreferenceToggleRow(
+                    title: text(.processRanks),
+                    systemImage: "list.number",
+                    binding: $displaySettings.showProcessRanks
+                )
+                PreferenceToggleRow(
+                    title: text(.publicIPLocation),
+                    systemImage: "location",
+                    binding: $displaySettings.publicIPLookupEnabled
+                )
+            }
+
+            Divider()
+
             HStack {
                 Text(text(.metric))
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -322,6 +511,7 @@ struct MonitorPopoverView: View {
             }
 
             Spacer(minLength: 0)
+            }
         }
     }
 
@@ -379,6 +569,21 @@ struct MonitorPopoverView: View {
         return "\(ByteFormatter.memory(disk.freeBytes)) \(text(.free))"
     }
 
+    private func powerText(_ power: PowerSnapshot) -> String {
+        switch power.source {
+        case .noBattery:
+            return "AC"
+        case .acPower, .battery:
+            guard let batteryPercent = power.batteryPercent else {
+                return power.source == .acPower ? "AC" : text(.unavailable)
+            }
+            let suffix = power.isCharging ? " · +" : ""
+            return "\(percent(batteryPercent))\(suffix)"
+        case .unknown:
+            return text(.unavailable)
+        }
+    }
+
     private func networkActivityLevel(_ network: NetworkSnapshot) -> Double {
         let bytesPerSecond = max(network.downloadBytesPerSecond, network.uploadBytesPerSecond)
         return min(max(bytesPerSecond / 10_000_000, 0), 1)
@@ -392,6 +597,10 @@ struct MonitorPopoverView: View {
 
     private func text(_ key: LocalizedCopy.Key) -> String {
         LocalizedCopy.text(key, language: displaySettings.language)
+    }
+
+    private func moduleEnabled(_ module: MonitorModule) -> Bool {
+        displaySettings.monitorModules.contains(module)
     }
 
     private func openActivityMonitor() {
@@ -421,6 +630,17 @@ struct MonitorPopoverView: View {
             },
             set: { isVisible in
                 displaySettings.set(isVisible, metric: metric, inStatusBar: inStatusBar)
+            }
+        )
+    }
+
+    private func binding(for module: MonitorModule) -> Binding<Bool> {
+        Binding(
+            get: {
+                displaySettings.binding(for: module)
+            },
+            set: { isVisible in
+                displaySettings.set(isVisible, module: module)
             }
         )
     }
@@ -573,6 +793,119 @@ private enum ProcessValueStyle {
     case speed
 }
 
+private struct NativeHistoryStrip: View {
+    let values: [Double]
+    let tint: Color
+    let label: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 74, alignment: .leading)
+
+            Sparkline(values: values, tint: tint)
+                .frame(height: 26)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+private struct Sparkline: View {
+    let values: [Double]
+    let tint: Color
+
+    var body: some View {
+        GeometryReader { proxy in
+            let normalized = values.suffix(60).map { min(max($0, 0), 1) }
+            ZStack(alignment: .bottomLeading) {
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(.secondary.opacity(0.10))
+
+                if normalized.count > 1 {
+                    Path { path in
+                        for (index, value) in normalized.enumerated() {
+                            let x = proxy.size.width * CGFloat(index) / CGFloat(max(normalized.count - 1, 1))
+                            let y = proxy.size.height * (1 - CGFloat(value))
+                            if index == 0 {
+                                path.move(to: CGPoint(x: x, y: y))
+                            } else {
+                                path.addLine(to: CGPoint(x: x, y: y))
+                            }
+                        }
+                    }
+                    .stroke(tint.opacity(0.85), style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
+                }
+            }
+        }
+    }
+}
+
+private struct NativeProcessTopList: View {
+    let category: ProcessCategorySnapshot
+    let valueStyle: ProcessValueStyle
+    let language: AppLanguage
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            if category.items.isEmpty {
+                Text(noteText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            } else {
+                ForEach(Array(category.items.enumerated()), id: \.element.id) { index, item in
+                    HStack(spacing: 8) {
+                        Text("#\(index + 1)")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .frame(width: 24, alignment: .leading)
+                        Text(item.name)
+                            .font(.caption)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer(minLength: 8)
+                        Text(valueText(for: item))
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private func valueText(for item: ProcessMetricSample) -> String {
+        switch valueStyle {
+        case .percent:
+            return String(format: "%.1f%%", item.value)
+        case .memory:
+            let memory = item.auxiliaryBytes.map(ByteFormatter.memory) ?? "-"
+            return "\(memory) · \(String(format: "%.1f%%", item.value))"
+        case .speed:
+            return ByteFormatter.speed(item.value)
+        }
+    }
+
+    private var noteText: String {
+        guard let note = category.note else {
+            return LocalizedCopy.text(.noProcessData, language: language)
+        }
+        if note.contains("disk") {
+            return LocalizedCopy.text(.diskProcessMetricsUnavailable, language: language)
+        }
+        if note.contains("network") {
+            return LocalizedCopy.text(.networkProcessMetricsUnavailable, language: language)
+        }
+        return LocalizedCopy.text(.processMetricsUnavailable, language: language)
+    }
+}
+
 private struct PixelUsageBar: View {
     let value: Double?
     let tint: Color
@@ -672,6 +1005,7 @@ private struct NetworkIdentityCard: View {
     let isLoading: Bool
     let locationError: String?
     let clashStatus: ClashStatus
+    let lookupEnabled: Bool
     let copied: Bool
     let copyAction: () -> Void
     let language: AppLanguage
@@ -707,7 +1041,7 @@ private struct NetworkIdentityCard: View {
                         .font(.system(size: 13, weight: .semibold))
                 }
                 .buttonStyle(.borderless)
-                .disabled(location == nil)
+                .disabled(location == nil || !lookupEnabled)
             }
 
             CompactStatusLine(
@@ -741,6 +1075,9 @@ private struct NetworkIdentityCard: View {
     }
 
     private var ipText: String {
+        if !lookupEnabled {
+            return LocalizedCopy.text(.localOnly, language: language)
+        }
         if let location {
             return location.ipAddress
         }
@@ -748,6 +1085,9 @@ private struct NetworkIdentityCard: View {
     }
 
     private var locationText: String {
+        if !lookupEnabled {
+            return LocalizedCopy.text(.localOnly, language: language)
+        }
         if let location, !location.displayLocation.isEmpty {
             return location.displayLocation
         }
@@ -762,6 +1102,7 @@ private struct PublicIPAddressRow: View {
     let publicLocation: PublicIPLocation?
     let isLoadingLocation: Bool
     let locationError: String?
+    let lookupEnabled: Bool
     let language: AppLanguage
     let copied: Bool
     let copyAction: () -> Void
@@ -787,7 +1128,7 @@ private struct PublicIPAddressRow: View {
                         .frame(width: 18, height: 18)
                 }
                 .buttonStyle(.borderless)
-                .disabled(publicLocation == nil)
+                .disabled(publicLocation == nil || !lookupEnabled)
                 .help(copied ? text(.copied) : text(.copyPublicIP))
             }
 
@@ -817,6 +1158,9 @@ private struct PublicIPAddressRow: View {
     }
 
     private var publicIPPlaceholder: String {
+        if !lookupEnabled {
+            return text(.localOnly)
+        }
         if isLoadingLocation {
             return text(.loading)
         }
@@ -824,6 +1168,9 @@ private struct PublicIPAddressRow: View {
     }
 
     private var locationText: String {
+        if !lookupEnabled {
+            return text(.localOnly)
+        }
         if let publicLocation, !publicLocation.displayLocation.isEmpty {
             return publicLocation.displayLocation
         }
@@ -834,6 +1181,9 @@ private struct PublicIPAddressRow: View {
     }
 
     private var locationDetailText: String {
+        if !lookupEnabled {
+            return text(.publicIPLocation)
+        }
         if let publicLocation {
             if let coordinates = publicLocation.coordinates, !coordinates.isEmpty {
                 return coordinates
@@ -1151,6 +1501,42 @@ private struct MetricSettingRow: View {
             Toggle("", isOn: hoverBinding)
                 .labelsHidden()
                 .frame(width: 58)
+        }
+        .font(.subheadline)
+    }
+}
+
+private struct ModuleSettingRow: View {
+    let module: MonitorModule
+    let language: AppLanguage
+    let binding: Binding<Bool>
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Label(module.title(language: language), systemImage: module.systemImage)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Toggle("", isOn: binding)
+                .labelsHidden()
+        }
+        .font(.subheadline)
+    }
+}
+
+private struct PreferenceToggleRow: View {
+    let title: String
+    let systemImage: String
+    let binding: Binding<Bool>
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Label(title, systemImage: systemImage)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Toggle("", isOn: binding)
+                .labelsHidden()
         }
         .font(.subheadline)
     }

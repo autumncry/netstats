@@ -25,8 +25,10 @@ final class IPGeolocationStore: ObservableObject {
     @Published private(set) var errorMessage: String?
 
     private var timer: Timer?
+    private var lookupEnabled = true
 
-    func start() {
+    func start(lookupEnabled: Bool = true) {
+        self.lookupEnabled = lookupEnabled
         refresh()
         timer = Timer.scheduledTimer(withTimeInterval: 30 * 60, repeats: true) { [weak self] _ in
             Task { @MainActor in
@@ -44,7 +46,29 @@ final class IPGeolocationStore: ObservableObject {
         timer = nil
     }
 
+    func setLookupEnabled(_ enabled: Bool) {
+        guard lookupEnabled != enabled else {
+            return
+        }
+
+        lookupEnabled = enabled
+        if enabled {
+            refresh()
+        } else {
+            location = nil
+            errorMessage = nil
+            isLoading = false
+        }
+    }
+
     func refresh() {
+        guard lookupEnabled else {
+            location = nil
+            errorMessage = nil
+            isLoading = false
+            return
+        }
+
         guard !isLoading else {
             return
         }

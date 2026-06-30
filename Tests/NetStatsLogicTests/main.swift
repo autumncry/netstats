@@ -223,6 +223,76 @@ private func testProcessMetricSamplerReadsLiveMemoryProcesses() {
     expect(!snapshot.memory.items.isEmpty, "live process sampler should return memory processes")
 }
 
+@MainActor
+private func testDisplaySettingsPersistsObservatoryPreferences() {
+    let suiteName = "netstats-observatory-settings-tests-\(UUID().uuidString)"
+    guard let defaults = UserDefaults(suiteName: suiteName) else {
+        fputs("FAIL: test defaults should be created\n", stderr)
+        Foundation.exit(1)
+    }
+    defer {
+        defaults.removePersistentDomain(forName: suiteName)
+    }
+
+    let settings = DisplaySettings(defaults: defaults)
+    expect(settings.monitorModules == Set(MonitorModule.allCases), "all observatory modules should be enabled by default")
+    expect(settings.publicIPLookupEnabled == true, "public IP lookup should default to enabled")
+    expect(settings.showHistory == true, "history should default to visible")
+    expect(settings.showProcessRanks == true, "process ranks should default to visible")
+
+    settings.set(false, module: .clash)
+    settings.publicIPLookupEnabled = false
+    settings.showHistory = false
+    settings.showProcessRanks = false
+
+    let reloaded = DisplaySettings(defaults: defaults)
+    expect(!reloaded.monitorModules.contains(.clash), "disabled observatory module should persist")
+    expect(reloaded.publicIPLookupEnabled == false, "public IP lookup preference should persist")
+    expect(reloaded.showHistory == false, "history preference should persist")
+    expect(reloaded.showProcessRanks == false, "process rank preference should persist")
+}
+
+private func testMetricHistoryKeepsLatestSamples() {
+    var history = MetricHistory(maxSamples: 3)
+
+    for index in 0..<5 {
+        history.append(SystemSnapshot(
+            timestamp: Date(timeIntervalSince1970: TimeInterval(index)),
+            cpuUsage: Double(index) / 10,
+            memory: MemorySnapshot(
+                usedBytes: UInt64(index + 1),
+                totalBytes: 10,
+                availableBytes: 9,
+                cachedBytes: 0,
+                wiredBytes: 0,
+                compressedBytes: 0,
+                pressure: Double(index) / 8
+            ),
+            disk: DiskSnapshot(
+                usedBytes: UInt64(index + 2),
+                totalBytes: 10,
+                freeBytes: 8,
+                readBytesPerSecond: Double(index) * 100,
+                writeBytesPerSecond: Double(index) * 50
+            ),
+            network: NetworkSnapshot(
+                downloadBytesPerSecond: Double(index) * 1_000,
+                uploadBytesPerSecond: Double(index) * 500,
+                sessionDownloadedBytes: UInt64(index * 1_000),
+                sessionUploadedBytes: UInt64(index * 500),
+                activeInterfaces: [],
+                ipv4Addresses: []
+            ),
+            power: .noBattery
+        ))
+    }
+
+    expect(history.samples.count == 3, "history should keep only the latest samples")
+    expect(history.samples.map(\.cpuUsage) == [0.2, 0.3, 0.4], "history should preserve newest CPU samples in order")
+    expect(history.samples.last?.networkDownloadBytesPerSecond == 4_000, "history should capture network speed")
+    expect(history.samples.last?.diskWriteBytesPerSecond == 200, "history should capture disk write speed")
+}
+
 testClashModeNormalizesSupportedValues()
 testTopLevelScalarUpdaterReplacesExistingValue()
 testTopLevelScalarUpdaterAppendsMissingValue()
@@ -238,5 +308,9 @@ await MainActor.run {
 }
 testProcessPSParserBuildsTopCPUAndMemoryProcesses()
 testProcessMetricSamplerReadsLiveMemoryProcesses()
+await MainActor.run {
+    testDisplaySettingsPersistsObservatoryPreferences()
+}
+testMetricHistoryKeepsLatestSamples()
 
 print("NetStatsLogicTests passed")

@@ -128,6 +128,14 @@ final class StatusBarController: NSObject {
                 self?.resizePanelForCurrentStyle()
             }
             .store(in: &cancellables)
+
+        displaySettings.$publicIPLookupEnabled
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] isEnabled in
+                self?.ipGeolocationStore.setLookupEnabled(isEnabled)
+            }
+            .store(in: &cancellables)
     }
 
     private func updateStatusItem(_ snapshot: SystemSnapshot) {
@@ -330,7 +338,7 @@ private extension PanelStyle {
     var panelSize: NSSize {
         switch self {
         case .native:
-            return NSSize(width: 420, height: 740)
+            return NSSize(width: 440, height: 760)
         case .terminal:
             return NSSize(width: 760, height: 700)
         }
