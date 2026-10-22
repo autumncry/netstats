@@ -10,7 +10,8 @@ const pkg = require("../package.json");
 const owner = "autumncry";
 const repo = "netstats";
 const dmgName = `NetStats-${pkg.version}.dmg`;
-const dmgURL = `https://github.com/${owner}/${repo}/releases/download/v${pkg.version}/${dmgName}`;
+const releaseTag = pkg.githubReleaseTag || `v${pkg.version}`;
+const dmgURL = `https://github.com/${owner}/${repo}/releases/download/${releaseTag}/${dmgName}`;
 
 const command = process.argv[2] || "help";
 

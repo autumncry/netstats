@@ -6,7 +6,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private var displaySettings: DisplaySettings?
     private var ipGeolocationStore: IPGeolocationStore?
     private var clashStatusStore: ClashStatusStore?
-    private var statusController: StatusBarController?
+    private var hubStore: HubStore?
+    private var presentationCoordinator: MonitorPresentationCoordinator?
 
     public override init() {
         super.init()
@@ -21,13 +22,17 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         self.displaySettings = displaySettings
         self.ipGeolocationStore = ipGeolocationStore
         self.clashStatusStore = clashStatusStore
-        statusController = StatusBarController(
+        let hubStore = HubStore(metricsStore: metricsStore, displaySettings: displaySettings)
+        self.hubStore = hubStore
+        presentationCoordinator = MonitorPresentationCoordinator(
             metricsStore: metricsStore,
+            hubStore: hubStore,
             displaySettings: displaySettings,
             ipGeolocationStore: ipGeolocationStore,
             clashStatusStore: clashStatusStore
         )
         metricsStore.start()
+        hubStore.start()
         ipGeolocationStore.start(lookupEnabled: displaySettings.publicIPLookupEnabled)
         clashStatusStore.start()
     }
@@ -36,6 +41,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         metricsStore?.stop()
         ipGeolocationStore?.stop()
         clashStatusStore?.stop()
-        statusController?.stop()
+        hubStore?.stop()
+        presentationCoordinator?.stop()
     }
 }

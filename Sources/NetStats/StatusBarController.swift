@@ -5,13 +5,20 @@ import SwiftUI
 @MainActor
 final class StatusBarController: NSObject {
     private let metricsStore: MetricsStore
+    private let hubStore: HubStore
     private let displaySettings: DisplaySettings
     private let ipGeolocationStore: IPGeolocationStore
     private let clashStatusStore: ClashStatusStore
     private let statusItem: NSStatusItem
     private lazy var panel = makePanel()
+    private var hubPanel: HubPanel?
+    private let hubNavigation = HubPanelNavigation()
+    private var environmentObservers: [(NotificationCenter, NSObjectProtocol)] = []
+    private var trackingMenus = Set<ObjectIdentifier>()
     private var cancellables = Set<AnyCancellable>()
     private var eventMonitors: [Any] = []
+    private let navigation = MonitorPanelNavigation()
+    var onVisibilityChange: ((Bool) -> Void)?
 
     private var currentPanelSize: NSSize {
         displaySettings.panelStyle.panelSize
@@ -19,11 +26,13 @@ final class StatusBarController: NSObject {
 
     init(
         metricsStore: MetricsStore,
+        hubStore: HubStore,
         displaySettings: DisplaySettings,
         ipGeolocationStore: IPGeolocationStore,
         clashStatusStore: ClashStatusStore
     ) {
         self.metricsStore = metricsStore
+        self.hubStore = hubStore
         self.displaySettings = displaySettings
         self.ipGeolocationStore = ipGeolocationStore
         self.clashStatusStore = clashStatusStore
@@ -32,6 +41,7 @@ final class StatusBarController: NSObject {
         configureStatusItem()
         configurePanel()
         bindMetrics()
+        observeEnvironment()
     }
 
     func stop() {
@@ -39,7 +49,19 @@ final class StatusBarController: NSObject {
             NSEvent.removeMonitor(eventMonitor)
         }
         eventMonitors.removeAll()
+        cancellables.removeAll()
+        for (center, token) in environmentObservers { center.removeObserver(token) }
+        environmentObservers.removeAll()
+        closeHubPanel()
+        hubPanel?.stopPopoverTracking()
         closePanel()
+    }
+
+    func show(page: MonitorPanelPage) {
+        guard let button = statusItem.button else { return }
+        closeHubPanel()
+        navigation.page = page
+        showPanel(relativeTo: button)
     }
 
     private func configureStatusItem() {
@@ -71,7 +93,8 @@ final class StatusBarController: NSObject {
                 metricsStore: metricsStore,
                 displaySettings: displaySettings,
                 ipGeolocationStore: ipGeolocationStore,
-                clashStatusStore: clashStatusStore
+                clashStatusStore: clashStatusStore,
+                navigation: navigation
             )
         )
         panel.hasShadow = true
@@ -85,22 +108,34 @@ final class StatusBarController: NSObject {
     }
 
     private func configurePanel() {
-        let globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            Task { @MainActor in
-                self?.closePanelIfNeeded(forScreenPoint: NSEvent.mouseLocation)
+        if let globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown], handler: { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.closeVisiblePanelIfNeeded(forScreenPoint: NSEvent.mouseLocation)
             }
-        }
-        if let globalMonitor {
-            eventMonitors.append(globalMonitor)
-        }
+        }) { eventMonitors.append(globalMonitor) }
 
-        let localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            self?.handleLocalMouseEvent(event)
-            return event
-        }
-        if let localMonitor {
-            eventMonitors.append(localMonitor)
-        }
+        if let localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown], handler: { [weak self] event in
+            var consumed = false
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if event.type == .keyDown, event.keyCode == 53 {
+                    if let hubPanel = self.hubPanel, hubPanel.isVisible,
+                       hubPanel.owns(event.window) || hubPanel.isKeyWindow {
+                        if !hubPanel.dismissOwnedChild() { self.closeHubPanel() }
+                        consumed = true
+                        return
+                    }
+                    if self.panel.isVisible, event.window === self.panel {
+                        self.closePanel()
+                        consumed = true
+                        return
+                    }
+                } else if event.type != .keyDown {
+                    self.handleLocalMouseEvent(event)
+                }
+            }
+            return consumed ? nil : event
+        }) { eventMonitors.append(localMonitor) }
     }
 
     private func bindMetrics() {
@@ -127,6 +162,19 @@ final class StatusBarController: NSObject {
             .sink { [weak self] _ in
                 self?.resizePanelForCurrentStyle()
             }
+            .store(in: &cancellables)
+
+        hubStore.$selected
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.resizeHubPanel() }
+            .store(in: &cancellables)
+        hubNavigation.$showingSettings
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.resizeHubPanel() }
+            .store(in: &cancellables)
+        hubStore.settings.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.resizeHubPanel() }
             .store(in: &cancellables)
 
         displaySettings.$publicIPLookupEnabled
@@ -222,14 +270,71 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func togglePanel(_ sender: NSStatusBarButton) {
-        if panel.isVisible {
+        if panel.isVisible || hubPanel?.isVisible == true {
+            closeHubPanel()
             closePanel()
         } else {
-            showPanel(relativeTo: sender)
+            showHubPanel(relativeTo: sender)
         }
     }
 
+    private func showHubPanel(relativeTo button: NSStatusBarButton) {
+        closePanel()
+        hubStore.selectDefault()
+        hubNavigation.showingSettings = false
+        if hubPanel == nil { hubPanel = makeHubPanel() }
+        onVisibilityChange?(true)
+        resizeHubPanel()
+        hubPanel?.orderFrontRegardless()
+    }
+
+    private func makeHubPanel() -> HubPanel {
+        let result = HubPanel()
+        result.trackPopoverLifecycle()
+        let root = HubPanelRootView(
+            store: hubStore, displaySettings: displaySettings, navigation: hubNavigation,
+            requestKeyboard: { [weak self] in self?.hubPanel?.requestKeyboard() },
+            holdInteraction: { _ in },
+            openDetails: { [weak self] in self?.show(page: .monitor) },
+            openLegacySettings: { [weak self] in self?.show(page: .settings) }
+        )
+        let hosting = NSHostingView(rootView: root)
+        let destination = NotchDropDestinationView(frame: .zero)
+        destination.acceptsFiles = { [weak self] in self?.hubStore.settings.enabledFeatures.contains(.shelf) == true }
+        destination.onEnter = { [weak self] in
+            self?.hubStore.select(feature: .shelf)
+            self?.hubNavigation.showingSettings = false
+            self?.resizeHubPanel()
+        }
+        destination.onDrop = { [weak self] urls in
+            self?.hubStore.shelf.add(urls: urls)
+            self?.hubStore.select(feature: .shelf)
+            self?.hubNavigation.showingSettings = false
+            self?.resizeHubPanel()
+        }
+        destination.embed(hosting)
+        result.contentView = destination
+        return result
+    }
+
+    private func resizeHubPanel() {
+        guard let hubPanel, let button = statusItem.button else { return }
+        let height: CGFloat = hubNavigation.showingSettings ? 520 : hubStore.currentHeight
+        let size = NSSize(width: 360, height: height)
+        hubPanel.setFrame(NSRect(origin: panelOrigin(relativeTo: button, size: size), size: size), display: true)
+    }
+
+    private func closeHubPanel() {
+        guard let hubPanel, hubPanel.isVisible else { return }
+        hubPanel.dismissOwnedChildren()
+        hubPanel.endInteraction()
+        hubPanel.orderOut(nil)
+        trackingMenus.removeAll()
+        onVisibilityChange?(panel.isVisible)
+    }
+
     private func showPanel(relativeTo button: NSStatusBarButton) {
+        onVisibilityChange?(true)
         let size = currentPanelSize
         let frame = NSRect(origin: panelOrigin(relativeTo: button, size: size), size: size)
         panel.setFrame(frame, display: true)
@@ -252,22 +357,18 @@ final class StatusBarController: NSObject {
         }
 
         panel.orderOut(nil)
+        onVisibilityChange?(hubPanel?.isVisible == true)
     }
 
-    private func closePanelIfNeeded(forScreenPoint point: NSPoint) {
-        guard panel.isVisible else {
-            return
+    private func closeVisiblePanelIfNeeded(forScreenPoint point: NSPoint) {
+        if let hubPanel, hubPanel.isVisible {
+            if hubPanel.containsOwnedPoint(point) || !trackingMenus.isEmpty { return }
+            if let button = statusItem.button, screenFrame(for: button).contains(point) { return }
+            closeHubPanel()
         }
-
-        if panel.frame.contains(point) {
-            return
-        }
-
-        if let button = statusItem.button,
-           screenFrame(for: button).contains(point) {
-            return
-        }
-
+        guard panel.isVisible else { return }
+        if panel.frame.contains(point) { return }
+        if let button = statusItem.button, screenFrame(for: button).contains(point) { return }
         closePanel()
     }
 
@@ -296,16 +397,54 @@ final class StatusBarController: NSObject {
     }
 
     private func handleLocalMouseEvent(_ event: NSEvent) {
-        guard panel.isVisible else {
-            return
+        if event.window === statusItem.button?.window { return }
+        if let hubPanel, hubPanel.isVisible {
+            if hubPanel.owns(event.window) || hubPanel.containsOwnedPoint(NSEvent.mouseLocation) || !trackingMenus.isEmpty { return }
+            closeHubPanel()
         }
-
-        if event.window === panel || event.window === statusItem.button?.window {
-            return
-        }
-
-        closePanel()
+        if panel.isVisible, event.window !== panel { closePanel() }
     }
+
+    private func observeEnvironment() {
+        let workspace = NSWorkspace.shared.notificationCenter
+        let entries: [(NotificationCenter, Notification.Name)] = [
+            (.default, NSApplication.didChangeScreenParametersNotification),
+            (workspace, NSWorkspace.willSleepNotification),
+            (workspace, NSWorkspace.screensDidSleepNotification),
+            (workspace, NSWorkspace.sessionDidResignActiveNotification),
+            (workspace, NSWorkspace.activeSpaceDidChangeNotification),
+            (workspace, NSWorkspace.didActivateApplicationNotification)
+        ]
+        for (center, name) in entries {
+            let token = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.closeHubPanel()
+                    self?.closePanel()
+                }
+            }
+            environmentObservers.append((center, token))
+        }
+        let begin = NotificationCenter.default.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil, queue: .main) { [weak self] note in
+            guard let menu = note.object as? NSMenu else { return }
+            let menuID = ObjectIdentifier(menu)
+            MainActor.assumeIsolated {
+                guard let self,
+                      self.hubPanel?.isVisible == true,
+                      self.hubPanel?.containsOwnedPoint(NSEvent.mouseLocation) == true else { return }
+                self.trackingMenus.insert(menuID)
+            }
+        }
+        let end = NotificationCenter.default.addObserver(forName: NSMenu.didEndTrackingNotification, object: nil, queue: .main) { [weak self] note in
+            guard let menu = note.object as? NSMenu else { return }
+            let menuID = ObjectIdentifier(menu)
+            MainActor.assumeIsolated {
+                _ = self?.trackingMenus.remove(menuID)
+            }
+        }
+        environmentObservers.append((.default, begin))
+        environmentObservers.append((.default, end))
+    }
+
 }
 
 private extension Set where Element == MonitorMetric {
@@ -319,19 +458,26 @@ private struct MonitorPanelRootView: View {
     @ObservedObject var displaySettings: DisplaySettings
     @ObservedObject var ipGeolocationStore: IPGeolocationStore
     @ObservedObject var clashStatusStore: ClashStatusStore
+    @ObservedObject var navigation: MonitorPanelNavigation
 
     var body: some View {
         MonitorPopoverView(
             metricsStore: metricsStore,
             displaySettings: displaySettings,
             ipGeolocationStore: ipGeolocationStore,
-            clashStatusStore: clashStatusStore
+            clashStatusStore: clashStatusStore,
+            page: $navigation.page
         )
         .frame(
             width: displaySettings.panelStyle.panelSize.width,
             height: displaySettings.panelStyle.panelSize.height
         )
     }
+}
+
+@MainActor
+private final class MonitorPanelNavigation: ObservableObject {
+    @Published var page = MonitorPanelPage.monitor
 }
 
 private extension PanelStyle {

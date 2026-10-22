@@ -94,11 +94,15 @@ The npm installer downloads the matching GitHub Release DMG and opens it. It doe
 - Native macOS AppKit + SwiftUI UI
 - English and Chinese interface
 
+The [glass hub](docs/notch-hover.md) shares a six-feature Dock between menu-bar clicks and notch hover: Network, Device, Calendar, Weather, Clipboard and Shelf. Each feature has a shared switch. The optional notch entrance opens after a 1-second hover and closes after 0.3 seconds outside.
+
 ## Privacy
 
 System metrics, network speed, process ranking, and Clash Verge Dev status are read and processed locally on your Mac and are never sent to any NetStats-owned server. Clash Verge Dev status display only reads local configuration, the local Mihomo controller, and macOS system proxy state. Public IP and geolocation lookup uses `ipinfo.io` to resolve the current public egress address; if you do not need this information, you can disable public IP location lookup in settings.
 
 See [Privacy](docs/PRIVACY.md) and [Permissions](docs/PERMISSIONS.md) for details.
+
+Calendar, Weather and Clipboard are initially disabled. Calendar requires an explicit system Full Access grant; NetStats only queries events. Clipboard history stays local, defaults to 30 days and unlimited text/image counts, and supports pause/clear. New macOS versions must allow background clipboard reads before collection. Weather uses a user-configured and verified [system shortcut](docs/weather-shortcut.md), which can use the system network/location services. Shelf persists file bookmarks without moving or deleting originals.
 
 ## FAQ
 
@@ -145,7 +149,7 @@ open dist
 - [Roadmap](docs/roadmap.md): upcoming features, distribution plans, and design principles
 - [Website](https://autumncry.github.io/netstats/): NetStats project landing page
 - [Changelog](CHANGELOG.md): release notes
-- [Release Notes](docs/release-notes/v1.0.0.md): current release notes
+- [Release Notes](docs/release-notes/v2.00.md): v2.00 version notes
 - [Release Checklist](docs/release-checklist.md): checklist for future releases
 - [Privacy](docs/PRIVACY.md): data boundaries, external requests, and local-first behavior
 - [Permissions](docs/PERMISSIONS.md): current permission model and intentionally limited metrics
