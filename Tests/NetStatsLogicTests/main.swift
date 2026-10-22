@@ -252,6 +252,32 @@ private func testDisplaySettingsPersistsObservatoryPreferences() {
     expect(reloaded.showProcessRanks == false, "process rank preference should persist")
 }
 
+@MainActor
+private func testNotchModeIsOptInAndPersistsWithoutChangingDetailPreferences() {
+    let suiteName = "netstats-notch-settings-tests-\(UUID().uuidString)"
+    guard let defaults = UserDefaults(suiteName: suiteName) else {
+        fatalError("Cannot create isolated test defaults")
+    }
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    defaults.set(PanelStyle.terminal.rawValue, forKey: "display.panelStyle")
+    defaults.set(["disk", "clash"], forKey: "display.monitorModules")
+    defaults.set(false, forKey: "privacy.publicIPLookupEnabled")
+
+    let settings = DisplaySettings(defaults: defaults)
+    expect(!settings.notchEnabled, "existing users should opt in to the notch card")
+    settings.notchEnabled = true
+
+    let reloaded = DisplaySettings(defaults: defaults)
+    expect(reloaded.notchEnabled, "notch choice should persist")
+    expect(reloaded.panelStyle == .terminal, "notch preference must not change detail style")
+    expect(reloaded.monitorModules == [.disk, .clash], "notch preference must preserve module choices")
+    expect(!reloaded.publicIPLookupEnabled, "notch preference must preserve IP privacy choice")
+    reloaded.notchEnabled = false
+    expect(!DisplaySettings(defaults: defaults).notchEnabled, "disabling notch mode should persist")
+    reloaded.monitorModules = []
+    expect(DisplaySettings(defaults: defaults).monitorModules.isEmpty, "an intentionally empty module selection should stay empty after relaunch")
+}
+
 private func testMetricHistoryKeepsLatestSamples() {
     var history = MetricHistory(maxSamples: 3)
 
@@ -310,6 +336,7 @@ testProcessPSParserBuildsTopCPUAndMemoryProcesses()
 testProcessMetricSamplerReadsLiveMemoryProcesses()
 await MainActor.run {
     testDisplaySettingsPersistsObservatoryPreferences()
+    testNotchModeIsOptInAndPersistsWithoutChangingDetailPreferences()
 }
 testMetricHistoryKeepsLatestSamples()
 

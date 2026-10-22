@@ -1,6 +1,7 @@
 {
   "name": "@autumncry/netstats",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "githubReleaseTag": "v2.00",
   "description": "Installer helper for NetStats, a native macOS menu bar system monitor.",
   "license": "MIT",
   "author": "Ronny Cao",

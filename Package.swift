@@ -23,6 +23,11 @@ let package = Package(
             name: "NetStatsLogicTests",
             dependencies: ["NetStatsCore"],
             path: "Tests/NetStatsLogicTests"
+        ),
+        .testTarget(
+            name: "NetStatsNotchTests",
+            dependencies: ["NetStatsCore"],
+            path: "Tests/NetStatsNotchTests"
         )
     ]
 )

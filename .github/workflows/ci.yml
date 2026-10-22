@@ -23,3 +23,9 @@ jobs:
 
       - name: Build release
         run: swift build -c release
+
+      - name: Test notch behavior and layout
+        run: swift test
+
+      - name: Run logic checks
+        run: swift run NetStatsLogicTests

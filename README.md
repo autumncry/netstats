@@ -93,12 +93,16 @@ npm 安装器会下载匹配版本的 GitHub Release DMG 并打开它。它不�
 - 可关闭公网 IP 与地理位置查询，进入更严格的本地优先模式
 - AppKit + SwiftUI 原生 macOS 界面
 - 支持中文和英文切换
+- [玻璃功能卡片](docs/notch-hover.md)：菜单栏点击与刘海悬停共用网络、设备、日历、天气、剪切板、暂存架六功能 Dock；每个功能可在设置中开关。刘海入口默认关闭，连续悬停 1 秒展开、移出 0.3 秒收起。
+- 剪切板文字和图片历史仅保存本机，默认 30 天、数量不限，可分别设置数量；暂存架保存文件引用，不移动或删除原文件。
 
 ## 隐私
 
 NetStats 的系统指标、网络速度、进程排行与 Clash Verge Dev 状态均在本机读取和处理，不会上传到 NetStats 的任何项目服务器。Clash Verge Dev 状态展示只读取本机配置、Mihomo 本地控制接口和 macOS 系统代理状态。公网 IP 与地理位置功能需要请求 `ipinfo.io` 以解析当前公网出口；如果你不需要该信息，可以在设置中关闭公网 IP 地理位置查询。
 
 更多细节见 [Privacy](docs/PRIVACY.md) 和 [Permissions](docs/PERMISSIONS.md)。
+
+日历、天气和剪切板默认关闭。日历需在设置中主动授予系统完整访问权限，产品只查询；剪切板在新版 macOS 需允许后台读取后才记录，可暂停或清空历史。天气通过你配置并测试成功的[系统快捷指令](docs/weather-shortcut.md)获取 Apple 天气，不读取天气 App 私有缓存；天气查询可能由系统访问网络或位置。文件暂存架仅保存本机书签引用。
 
 ## 常见问题
 
@@ -145,7 +149,7 @@ open dist
 - [Roadmap](docs/roadmap.md)：后续功能、分发方式和设计原则
 - [Website](https://autumncry.github.io/netstats/)：NetStats 项目落地页
 - [Changelog](CHANGELOG.md)：版本更新记录
-- [Release Notes](docs/release-notes/v1.0.0.md)：当前版本发布说明
+- [Release Notes](docs/release-notes/v2.00.md)：v2.00 版本说明
 - [Release Checklist](docs/release-checklist.md)：后续版本发布检查清单
 - [Privacy](docs/PRIVACY.md)：数据读取、外部请求和本地优先边界
 - [Permissions](docs/PERMISSIONS.md)：当前权限模型和受限指标说明

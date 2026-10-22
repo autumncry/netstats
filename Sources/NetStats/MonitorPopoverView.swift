@@ -8,7 +8,7 @@ struct MonitorPopoverView: View {
     @ObservedObject var ipGeolocationStore: IPGeolocationStore
     @ObservedObject var clashStatusStore: ClashStatusStore
 
-    @State private var page = PanelPage.monitor
+    @Binding var page: MonitorPanelPage
     @State private var copiedIPAddress = false
 
     var body: some View {
@@ -437,6 +437,20 @@ struct MonitorPopoverView: View {
                 .labelsHidden()
                 .pickerStyle(.segmented)
                 .frame(width: 170)
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 6) {
+                PreferenceToggleRow(
+                    title: text(.notchCard),
+                    systemImage: "macbook",
+                    binding: $displaySettings.notchEnabled
+                )
+                Text(text(displaySettings.notchAvailable ? .notchHint : .notchUnavailable))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Divider()
@@ -1378,7 +1392,7 @@ private struct CompactStatusLine: View {
     }
 }
 
-private enum PanelPage {
+enum MonitorPanelPage {
     case monitor
     case settings
 }

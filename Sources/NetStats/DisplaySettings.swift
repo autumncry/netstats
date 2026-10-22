@@ -222,6 +222,15 @@ public final class DisplaySettings: ObservableObject {
         }
     }
 
+    @Published public var notchEnabled: Bool {
+        didSet {
+            defaults.set(notchEnabled, forKey: Self.notchEnabledKey)
+        }
+    }
+
+    // Hardware availability is transient; it must never overwrite the saved choice.
+    @Published var notchAvailable = false
+
     private static let statusBarKey = "display.statusBarMetrics"
     private static let hoverKey = "display.hoverMetrics"
     private static let languageKey = "display.language"
@@ -230,6 +239,7 @@ public final class DisplaySettings: ObservableObject {
     private static let publicIPLookupEnabledKey = "privacy.publicIPLookupEnabled"
     private static let showHistoryKey = "display.showHistory"
     private static let showProcessRanksKey = "display.showProcessRanks"
+    private static let notchEnabledKey = "display.notchEnabled"
     private let defaults: UserDefaults
 
     public init(defaults: UserDefaults = .standard) {
@@ -254,6 +264,7 @@ public final class DisplaySettings: ObservableObject {
         )
         showHistory = Self.readBool(from: defaults, key: Self.showHistoryKey, fallback: true)
         showProcessRanks = Self.readBool(from: defaults, key: Self.showProcessRanksKey, fallback: true)
+        notchEnabled = Self.readBool(from: defaults, key: Self.notchEnabledKey, fallback: false)
     }
 
     func binding(for metric: MonitorMetric, inStatusBar: Bool) -> Bool {
@@ -309,6 +320,9 @@ public final class DisplaySettings: ObservableObject {
         guard let rawValues = defaults.array(forKey: monitorModulesKey) as? [String] else {
             return Set(MonitorModule.allCases)
         }
+
+        // Empty is an explicit choice, not a missing preference.
+        if rawValues.isEmpty { return [] }
 
         let modules = Set(rawValues.compactMap(MonitorModule.init(rawValue:)))
         return modules.isEmpty ? Set(MonitorModule.allCases) : modules
@@ -413,6 +427,12 @@ enum LocalizedCopy {
         case up
         case used
         case waitingForSample
+        case notchCard
+        case notchHint
+        case notchUnavailable
+        case notchEmpty
+        case viewDetails
+        case memoryUsage
     }
 
     private static let english: [Key: String] = [
@@ -477,7 +497,13 @@ enum LocalizedCopy {
         .unavailable: "Unavailable",
         .up: "Up",
         .used: "Used",
-        .waitingForSample: "Waiting for sample"
+        .waitingForSample: "Waiting for sample",
+        .notchCard: "Notch hover card",
+        .notchHint: "Hover over the built-in notch for 1 second. Move away for 0.3 seconds to close.",
+        .notchUnavailable: "A built-in display with a physical notch is not available. Your choice is saved.",
+        .notchEmpty: "Enable Hardware or Network in settings to show metrics here.",
+        .viewDetails: "View details",
+        .memoryUsage: "Memory usage"
     ]
 
     private static let simplifiedChinese: [Key: String] = [
@@ -542,6 +568,12 @@ enum LocalizedCopy {
         .unavailable: "不可用",
         .up: "上传",
         .used: "已用",
-        .waitingForSample: "等待采样"
+        .waitingForSample: "等待采样",
+        .notchCard: "刘海悬停卡片",
+        .notchHint: "在内置屏刘海处悬停 1 秒展开，移出 0.3 秒后收起。",
+        .notchUnavailable: "当前没有可用的内置刘海屏幕，已保留你的开关设置。",
+        .notchEmpty: "请在设置中开启硬件或网络模块，以在此显示指标。",
+        .viewDetails: "查看详情",
+        .memoryUsage: "内存占用"
     ]
 }
