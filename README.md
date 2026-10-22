@@ -1,3 +1,5 @@
+
+
 <p align="center">
   <img src="assets/icon/netstats-icon.svg" width="96" alt="NetStats icon">
 </p>
@@ -72,7 +74,7 @@ brew install --cask netstats
 npx @autumncry/netstats install
 ```
 
-npm 安装器会下载匹配版本的 GitHub Release DMG 并打开它。它不会在 `postinstall` 阶段自动安装软件。
+npm 安装器会下载匹配版本的 GitHub Release DMG 并打开它。它不会在 `postinstall` 阶段自动安装软件。此方法需要 Node.js 18 或更高版本。
 
 ## 系统要求
 
