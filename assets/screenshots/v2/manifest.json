@@ -1,0 +1,66 @@
+{
+  "version": "v2.00",
+  "sourceCommit": "c47df4af3732700c8d4e5956b2c63f453cf35505",
+  "sourceMatchesReleaseTag": true,
+  "kind": "native-view-render",
+  "captureMethod": "NSHostingView.cacheDisplay(in:to:)",
+  "data": "synthetic example data",
+  "appearance": "light; existing product Reduce Transparency fallback branch",
+  "environment": {
+    "macOS": "27.0.1",
+    "build": "26A434",
+    "Xcode": "27.0"
+  },
+  "notDesktopScreenshot": true,
+  "assets": [
+    {
+      "file": "calendar.png",
+      "width": 1280,
+      "height": 880,
+      "bytes": 727820,
+      "sha256": "ca801b1197895d161cb46c1898295a91e3d07d69c47f6c8fa874273b79162938"
+    },
+    {
+      "file": "clipboard.png",
+      "width": 1280,
+      "height": 880,
+      "bytes": 737283,
+      "sha256": "c09ace1fdcd5b8000bb604dfc0931de532d23149c92d215d6e2d977f4aaf06ef"
+    },
+    {
+      "file": "device.png",
+      "width": 1280,
+      "height": 880,
+      "bytes": 751874,
+      "sha256": "bcd962bdc6accd64be0d2fae0e9cc3cf6789527e419e3cf51910a2035022cf19"
+    },
+    {
+      "file": "network.png",
+      "width": 1280,
+      "height": 880,
+      "bytes": 775377,
+      "sha256": "b299c3ecb7c13b4422ec5346555a39eb7e2f9a3884a7eb020a743abac9485cf7"
+    },
+    {
+      "file": "settings.png",
+      "width": 1280,
+      "height": 1320,
+      "bytes": 937049,
+      "sha256": "fbe3865710d4e73444b9fc6c5835f81bda992fbd84f46ba3e209630f9b979ed1"
+    },
+    {
+      "file": "shelf.png",
+      "width": 1280,
+      "height": 880,
+      "bytes": 741461,
+      "sha256": "2048e02e39524b5c46c5c1a2fa37f9f887ac68beae8dc6b4f92f22c8bd7a3c2a"
+    },
+    {
+      "file": "weather.png",
+      "width": 1280,
+      "height": 880,
+      "bytes": 764168,
+      "sha256": "cbb8b758b09cdc64aa71510935c7e2675c072d8b8fcb8ca527a617c303dea6b3"
+    }
+  ]
+}
