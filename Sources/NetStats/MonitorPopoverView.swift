@@ -8,21 +8,14 @@ struct MonitorPopoverView: View {
     @ObservedObject var ipGeolocationStore: IPGeolocationStore
     @ObservedObject var clashStatusStore: ClashStatusStore
 
-    @Binding var page: MonitorPanelPage
+    var openSettings: () -> Void
     @State private var copiedIPAddress = false
 
     var body: some View {
         let snapshot = metricsStore.snapshot
         let processSnapshot = metricsStore.processSnapshot
 
-        Group {
-            switch page {
-            case .monitor:
-                monitorPage(snapshot, processes: processSnapshot)
-            case .settings:
-                settingsPage(snapshot)
-            }
-        }
+        monitorPage(snapshot, processes: processSnapshot)
         .padding(panelPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background { panelBackground }
@@ -55,7 +48,7 @@ struct MonitorPopoverView: View {
                     title: text(.systemMonitor),
                     subtitle: Text(snapshot.timestamp, style: .time),
                     buttonImage: "gearshape",
-                    buttonAction: { page = .settings }
+                    buttonAction: openSettings
                 )
                 Divider()
 
@@ -292,7 +285,7 @@ struct MonitorPopoverView: View {
                 snapshot: snapshot,
                 gpuName: gpuName,
                 language: displaySettings.language,
-                settingsAction: { page = .settings }
+                settingsAction: openSettings
             )
 
             HStack(alignment: .top, spacing: 12) {
@@ -376,12 +369,12 @@ struct MonitorPopoverView: View {
     }
 
     private var panelPadding: CGFloat {
-        page == .monitor && displaySettings.panelStyle == .terminal ? 18 : 16
+        displaySettings.panelStyle == .terminal ? 18 : 16
     }
 
     @ViewBuilder
     private var panelBackground: some View {
-        if page == .monitor && displaySettings.panelStyle == .terminal {
+        if displaySettings.panelStyle == .terminal {
             LinearGradient(
                 colors: [
                     Color(red: 0.10, green: 0.11, blue: 0.13),
@@ -392,142 +385,6 @@ struct MonitorPopoverView: View {
             )
         } else {
             Color.clear.background(.regularMaterial)
-        }
-    }
-
-    private func settingsPage(_ snapshot: SystemSnapshot) -> some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 14) {
-            header(
-                title: text(.display),
-                subtitle: Text(text(.statusBarAndHover)),
-                buttonImage: "checkmark",
-                buttonAction: { page = .monitor }
-            )
-
-            Divider()
-
-            HStack {
-                Label(text(.language), systemImage: "globe")
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                Picker("", selection: $displaySettings.language) {
-                    ForEach(AppLanguage.allCases) { language in
-                        Text(language.displayName)
-                            .tag(language)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-                .frame(width: 150)
-            }
-
-            Divider()
-
-            HStack {
-                Label(text(.style), systemImage: "square.grid.2x2")
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                Picker("", selection: $displaySettings.panelStyle) {
-                    ForEach(PanelStyle.allCases) { style in
-                        Text(style.title(language: displaySettings.language))
-                            .tag(style)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-                .frame(width: 170)
-            }
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 6) {
-                PreferenceToggleRow(
-                    title: text(.notchCard),
-                    systemImage: "macbook",
-                    binding: $displaySettings.notchEnabled
-                )
-                Text(text(displaySettings.notchAvailable ? .notchHint : .notchUnavailable))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Divider()
-
-            SectionHeader(title: text(.modules), systemImage: "square.grid.2x2")
-
-            VStack(spacing: 9) {
-                ForEach(MonitorModule.allCases) { module in
-                    ModuleSettingRow(
-                        module: module,
-                        language: displaySettings.language,
-                        binding: binding(for: module)
-                    )
-                }
-            }
-
-            Divider()
-
-            SectionHeader(title: text(.display), systemImage: "eye")
-
-            VStack(spacing: 9) {
-                PreferenceToggleRow(
-                    title: text(.showHistory),
-                    systemImage: "waveform.path.ecg",
-                    binding: $displaySettings.showHistory
-                )
-                PreferenceToggleRow(
-                    title: text(.processRanks),
-                    systemImage: "list.number",
-                    binding: $displaySettings.showProcessRanks
-                )
-                PreferenceToggleRow(
-                    title: text(.publicIPLocation),
-                    systemImage: "location",
-                    binding: $displaySettings.publicIPLookupEnabled
-                )
-            }
-
-            Divider()
-
-            HStack {
-                Text(text(.metric))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Text(text(.bar))
-                    .frame(width: 48)
-                Text(text(.hover))
-                    .frame(width: 58)
-            }
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.secondary)
-
-            VStack(spacing: 10) {
-                ForEach(MonitorMetric.configurableCases) { metric in
-                    MetricSettingRow(
-                        metric: metric,
-                        language: displaySettings.language,
-                        statusBarBinding: binding(for: metric, inStatusBar: true),
-                        hoverBinding: binding(for: metric, inStatusBar: false)
-                    )
-                }
-
-                Divider()
-                    .padding(.vertical, 4)
-
-                SectionHeader(title: text(.advanced), systemImage: "slider.horizontal.3")
-
-                CompactValueRow(
-                    title: text(.interfaces),
-                    systemImage: "point.3.connected.trianglepath.dotted",
-                    value: snapshot.network.activeInterfaces.isEmpty
-                        ? text(.idle)
-                        : snapshot.network.activeInterfaces.joined(separator: " / ")
-                )
-            }
-
-            Spacer(minLength: 0)
-            }
         }
     }
 
@@ -559,7 +416,7 @@ struct MonitorPopoverView: View {
                     .font(.system(size: 14, weight: .semibold))
             }
             .buttonStyle(.borderless)
-            .help(page == .settings ? text(.done) : text(.settings))
+            .help(text(.settings))
         }
     }
 
@@ -639,27 +496,7 @@ struct MonitorPopoverView: View {
         }
     }
 
-    private func binding(for metric: MonitorMetric, inStatusBar: Bool) -> Binding<Bool> {
-        Binding(
-            get: {
-                displaySettings.binding(for: metric, inStatusBar: inStatusBar)
-            },
-            set: { isVisible in
-                displaySettings.set(isVisible, metric: metric, inStatusBar: inStatusBar)
-            }
-        )
-    }
 
-    private func binding(for module: MonitorModule) -> Binding<Bool> {
-        Binding(
-            get: {
-                displaySettings.binding(for: module)
-            },
-            set: { isVisible in
-                displaySettings.set(isVisible, module: module)
-            }
-        )
-    }
 }
 
 private struct TerminalHeader: View {
@@ -1392,11 +1229,6 @@ private struct CompactStatusLine: View {
     }
 }
 
-enum MonitorPanelPage {
-    case monitor
-    case settings
-}
-
 private struct SectionHeader: View {
     let title: String
     let systemImage: String
@@ -1493,66 +1325,6 @@ private struct CompactValueRow: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
-        }
-        .font(.subheadline)
-    }
-}
-
-private struct MetricSettingRow: View {
-    let metric: MonitorMetric
-    let language: AppLanguage
-    let statusBarBinding: Binding<Bool>
-    let hoverBinding: Binding<Bool>
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Label(metric.title(language: language), systemImage: metric.systemImage)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Toggle("", isOn: statusBarBinding)
-                .labelsHidden()
-                .frame(width: 48)
-
-            Toggle("", isOn: hoverBinding)
-                .labelsHidden()
-                .frame(width: 58)
-        }
-        .font(.subheadline)
-    }
-}
-
-private struct ModuleSettingRow: View {
-    let module: MonitorModule
-    let language: AppLanguage
-    let binding: Binding<Bool>
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Label(module.title(language: language), systemImage: module.systemImage)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Toggle("", isOn: binding)
-                .labelsHidden()
-        }
-        .font(.subheadline)
-    }
-}
-
-private struct PreferenceToggleRow: View {
-    let title: String
-    let systemImage: String
-    let binding: Binding<Bool>
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Label(title, systemImage: systemImage)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Toggle("", isOn: binding)
-                .labelsHidden()
         }
         .font(.subheadline)
     }

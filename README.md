@@ -2,7 +2,7 @@
   <img src="assets/icon/netstats-icon.svg" width="96" alt="NetStats 图标">
 </p>
 
-<h1 align="center">NetStats v2.00</h1>
+<h1 align="center">NetStats v2.01</h1>
 
 <p align="center">
   <strong>一张 360 pt 原生玻璃卡片，切换网络、设备、日历、天气、剪切板和暂存架。菜单栏点击与实体刘海悬停共用功能和设置。</strong>
@@ -13,8 +13,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/autumncry/netstats/releases/download/v2.00/NetStats-2.0.0.dmg">下载 v2.00 通用 DMG</a> ·
-  <a href="https://github.com/autumncry/netstats/releases/tag/v2.00">版本说明</a> ·
+  <a href="https://github.com/autumncry/netstats/releases/download/v2.01/NetStats-2.0.1.dmg">下载 v2.01 通用 DMG</a> ·
+  <a href="https://github.com/autumncry/netstats/releases/tag/v2.01">版本说明</a> ·
   <a href="https://autumncry.github.io/netstats/">查看功能与界面</a>
 </p>
 
@@ -52,17 +52,17 @@
 
 ## 安装
 
-### v2.00 DMG（推荐）
+### v2.01 DMG（推荐）
 
-下载 [NetStats-2.0.0.dmg](https://github.com/autumncry/netstats/releases/download/v2.00/NetStats-2.0.0.dmg)，打开后将 `NetStats.app` 拖到 `/Applications`。同一个通用安装包包含 Apple Silicon（arm64）和 Intel（x86_64）版本。
+下载 [NetStats-2.0.1.dmg](https://github.com/autumncry/netstats/releases/download/v2.01/NetStats-2.0.1.dmg)，打开后将 `NetStats.app` 拖到 `/Applications`。同一个通用安装包包含 Apple Silicon（arm64）和 Intel（x86_64）版本。
 
-[GitHub Release](https://github.com/autumncry/netstats/releases/tag/v2.00) · [SHA-256 校验文件](https://github.com/autumncry/netstats/releases/download/v2.00/NetStats-2.0.0.dmg.sha256)
+[GitHub Release](https://github.com/autumncry/netstats/releases/tag/v2.01) · [SHA-256 校验文件](https://github.com/autumncry/netstats/releases/download/v2.01/NetStats-2.0.1.dmg.sha256)
 
-v2.00 使用临时签名（ad-hoc），未使用 Developer ID 签名，也未经过 Apple 公证。macOS 首次打开可能拦截；确认下载来源后，可在 **系统设置 > 隐私与安全性** 中允许打开，具体步骤见发布页。
+v2.01 使用临时签名（ad-hoc），未使用 Developer ID 签名，也未经过 Apple 公证。macOS 首次打开可能拦截；确认下载来源后，可在 **系统设置 > 隐私与安全性** 中允许打开，具体步骤见发布页。
 
 ### Homebrew 与 npm
 
-[Homebrew tap](https://github.com/autumncry/homebrew-tap) 尚未同步 v2.00，`@autumncry/netstats` npm 包尚未发布。安装本版本请使用上方 DMG，或从源码构建。
+[Homebrew tap](https://github.com/autumncry/homebrew-tap) 尚未同步 v2.01，`@autumncry/netstats` npm 包尚未发布。安装本版本请使用上方 DMG，或从源码构建。
 
 ## 系统要求
 
@@ -78,7 +78,7 @@ v2.00 使用临时签名（ad-hoc），未使用 Developer ID 签名，也未经
 
 | 功能 | 内容 |
 | --- | --- |
-| 网络 | 实时上下行速率、短历史趋势、会话流量与活动接口。 |
+| 网络 | 同列对齐的上下行速率、双色趋势与启动后累计流量；接口信息放在完整详情。 |
 | 设备 | CPU、GPU 型号及可用负载、已用/总内存、启动盘容量；磁盘读写为全部块设备合计，不可用 GPU 读数显示“—”。 |
 | 日历 | 月/周浏览、选中日期日程、选择日历；显式授予系统完整访问后查询，创建和编辑交给系统 Calendar。 |
 | 天气 | 通过你配置并测试成功的系统快捷指令读取 Apple 当前天气；15 分钟缓存、手动刷新、失败保留上次结果。见[设置说明](docs/weather-shortcut.md)。 |
@@ -89,7 +89,7 @@ v2.00 使用临时签名（ad-hoc），未使用 Developer ID 签名，也未经
 
 点击菜单栏状态项即可打开卡片，再次点击关闭。在设置中开启刘海入口后，连续悬停 1 秒展开，移出刘海和卡片 300 毫秒后收起。有效文件拖到刘海停留 500 毫秒进入暂存架，松手才添加引用。
 
-底部 Dock 点击切换功能，齿轮进入共享设置；网络、设备、暂存架初始启用，日历、天气、剪切板初始关闭。被动浏览与 Dock 点击不抢焦点，主动输入、弹窗和拖放期间保持展开。详见[玻璃功能卡片](docs/notch-hover.md)。
+底部 Dock 点击切换功能，齿轮打开独立设置窗口；网络、设备、暂存架初始启用，日历、天气、剪切板初始关闭。被动浏览与 Dock 点击不抢焦点，主动输入、弹窗和拖放期间保持展开。详见[玻璃功能卡片](docs/notch-hover.md)。
 
 ### 完整监控继续保留
 
@@ -117,7 +117,7 @@ Clash 信息包含运行状态、系统代理、TUN、模式、订阅流量、�
 
 ### 为什么 macOS 提示无法验证开发者？
 
-v2.00 DMG 使用临时签名，尚未经过 Developer ID 签名和 Apple 公证。请从[官方发布页](https://github.com/autumncry/netstats/releases/tag/v2.00)下载、核对校验文件，并按发布页说明允许首次打开；也可从源码构建。
+v2.01 DMG 使用临时签名，尚未经过 Developer ID 签名和 Apple 公证。请从[官方发布页](https://github.com/autumncry/netstats/releases/tag/v2.01)下载、核对校验文件，并按发布页说明允许首次打开；也可从源码构建。
 
 ### 天气为什么没有自动显示？
 
@@ -131,9 +131,9 @@ GPU 型号可显示，但负载读数依赖驱动提供的数据。没有有效�
 
 NetStats 读取同一台 Mac 上的配置、进程、系统代理与本地 Mihomo 控制接口，不把这些信息上传到项目服务器，也不会控制或重启 Clash Verge Dev。
 
-### Homebrew 或 npm 能安装 v2.00 吗？
+### Homebrew 或 npm 能安装 v2.01 吗？
 
-目前请使用本页的 v2.00 DMG。独立 Homebrew tap 尚未同步该版本，npm 包尚未发布。
+目前请使用本页的 v2.01 DMG。独立 Homebrew tap 尚未同步该版本，npm 包尚未发布。
 
 ## 从源码构建
 
@@ -162,7 +162,7 @@ open dist
 ## 项目资料
 
 - [Website](https://autumncry.github.io/netstats/)：六功能介绍、界面与下载
-- [Release Notes](docs/release-notes/v2.00.md)：v2.00 版本说明
+- [Release Notes](docs/release-notes/v2.01.md)：v2.01 版本说明
 - [Glass Hub](docs/notch-hover.md)：双入口、交互与保存方式
 - [Weather Setup](docs/weather-shortcut.md)：Apple 天气快捷指令配置
 - [Roadmap](docs/roadmap.md)：后续功能、分发方式和设计原则

@@ -119,38 +119,18 @@ final class HubPanel: NSPanel {
     }
 }
 
-@MainActor
-final class HubPanelNavigation: ObservableObject {
-    @Published var showingSettings = false
-}
-
 struct HubPanelRootView: View {
     @ObservedObject var store: HubStore
     @ObservedObject var displaySettings: DisplaySettings
-    @ObservedObject var navigation: HubPanelNavigation
     let requestKeyboard: () -> Void
     let holdInteraction: (Bool) -> Void
     let openDetails: () -> Void
-    let openLegacySettings: () -> Void
+    let openSettings: () -> Void
 
     var body: some View {
-        Group {
-            if navigation.showingSettings {
-                HubSettingsView(
-                    store: store, displaySettings: displaySettings,
+        HubCardView(store: store, displaySettings: displaySettings,
                     requestKeyboard: requestKeyboard, holdInteraction: holdInteraction,
-                    openDetails: openDetails, openLegacySettings: openLegacySettings,
-                    closeSettings: { navigation.showingSettings = false }
-                )
-            } else {
-                HubCardView(
-                    store: store, displaySettings: displaySettings,
-                    requestKeyboard: requestKeyboard, holdInteraction: holdInteraction,
-                    openDetails: openDetails,
-                    openSettings: { navigation.showingSettings = true }
-                )
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    openDetails: openDetails, openSettings: openSettings)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

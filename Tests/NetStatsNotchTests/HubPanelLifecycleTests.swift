@@ -2,6 +2,24 @@ import XCTest
 @testable import NetStatsCore
 
 final class HubPanelLifecycleTests: XCTestCase {
+    func testOpeningIndependentSettingsDismissesOnceThenAllowsFreshHover() {
+        for expanded in [false, true] {
+            var state = HubHoverLifecycle()
+            state.update(now: 0, inTrigger: true, inCard: false)
+            if expanded { state.update(now: 1, inTrigger: true, inCard: false) }
+            state.dismiss()
+            state.update(now: 5, inTrigger: true, inCard: false)
+            XCTAssertFalse(state.isVisible, "Opening Settings must cancel the pending or expanded card")
+            XCTAssertNil(state.nextDeadline)
+            state.update(now: 6, inTrigger: false, inCard: false)
+            state.update(now: 7, inTrigger: true, inCard: false)
+            state.update(now: 7.999, inTrigger: true, inCard: false)
+            XCTAssertFalse(state.isVisible)
+            state.update(now: 8, inTrigger: true, inCard: false)
+            XCTAssertTrue(state.isVisible, "A still-open independent Settings window must allow a new dwell")
+        }
+    }
+
     func testTypingHoldsExpandedCardUntilInteractionEnds() {
         var state = HubHoverLifecycle()
         state.update(now: 0, inTrigger: true, inCard: false)

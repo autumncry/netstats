@@ -13,6 +13,12 @@ final class MetricsStore: ObservableObject {
     private var processTimer: Timer?
     private var isRefreshingProcesses = false
 
+    /// Allows previews to use explicit samples without starting system sampling.
+    init(snapshot: SystemSnapshot = .empty, history: MetricHistory = MetricHistory()) {
+        self.snapshot = snapshot
+        self.history = history
+    }
+
     func start() {
         refreshSystem()
         refreshProcesses()

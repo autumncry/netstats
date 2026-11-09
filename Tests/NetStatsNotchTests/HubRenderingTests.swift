@@ -4,6 +4,23 @@ import XCTest
 @testable import NetStatsCore
 
 final class HubRenderingTests: XCTestCase {
+    func testNetworkHandlesUploadDominantAndUnavailableSamples() async throws {
+        try await MainActor.run {
+            for language in AppLanguage.allCases {
+                for (index, rates) in [(474.0 * 1024, 13.0 * 1024 * 1024), (Double.nan, Double.infinity)].enumerated() {
+                    let network = NetworkSnapshot(downloadBytesPerSecond: rates.0, uploadBytesPerSecond: rates.1,
+                                                  sessionDownloadedBytes: 607 * 1024 * 1024 * 1024,
+                                                  sessionUploadedBytes: 113 * 1024 * 1024 * 1024,
+                                                  activeInterfaces: ["anpi0", "awdl0"], ipv4Addresses: [])
+                    let view = HubNetworkContent(network: network, history: MetricHistory(), language: language)
+                        .padding(16).frame(width: 360, height: 120)
+                        .background(Color(nsColor: .windowBackgroundColor))
+                    try Self.render(view, width: 360, height: 120, name: "network-sample-\(language.rawValue)-\(index)")
+                }
+            }
+        }
+    }
+
     func testSixFeaturesAndSettingsRenderAtDeclaredSizesInBothAppearances() async throws {
         try await MainActor.run {
             let suite = "netstats-hub-render-\(UUID())"
@@ -16,7 +33,16 @@ final class HubRenderingTests: XCTestCase {
             let settings = HubSettings(defaults: defaults)
             settings.enabledFeatures = Set(HubFeature.allCases)
             let display = DisplaySettings(defaults: defaults)
-            let store = HubStore(metricsStore: MetricsStore(), displaySettings: display,
+            let base = SystemSnapshot.empty
+            let example = SystemSnapshot(timestamp: base.timestamp, cpuUsage: 0.18, memory: base.memory,
+                                         disk: base.disk,
+                                         network: NetworkSnapshot(downloadBytesPerSecond: 474 * 1024, uploadBytesPerSecond: 13 * 1024 * 1024,
+                                                                  sessionDownloadedBytes: 607 * 1024 * 1024 * 1024,
+                                                                  sessionUploadedBytes: 113 * 1024 * 1024 * 1024,
+                                                                  activeInterfaces: ["anpi0", "awdl0"], ipv4Addresses: []), power: base.power)
+            var history = MetricHistory()
+            for _ in 0..<8 { history.append(example) }
+            let store = HubStore(metricsStore: MetricsStore(snapshot: example, history: history), displaySettings: display,
                                  settings: settings, defaults: defaults, storageDirectory: folder)
             for language in AppLanguage.allCases {
                 display.language = language
@@ -26,6 +52,7 @@ final class HubRenderingTests: XCTestCase {
                         let view = HubCardView(store: store, displaySettings: display, requestKeyboard: {},
                                                holdInteraction: { _ in }, openDetails: {}, openSettings: {})
                             .preferredColorScheme(dark ? .dark : .light)
+                            .environment(\.colorScheme, dark ? .dark : .light)
                         try Self.render(view, width: 360, height: feature.cardHeight,
                                    name: "\(language.rawValue)-\(dark ? "dark" : "light")-\(feature.rawValue)")
                         if feature == .calendar {
@@ -36,10 +63,9 @@ final class HubRenderingTests: XCTestCase {
                             store.calendar.mode = .week
                         }
                     }
-                    let settingsView = HubSettingsView(store: store, displaySettings: display, requestKeyboard: {},
-                                                       holdInteraction: { _ in }, openDetails: {}, openLegacySettings: {})
+                    let settingsView = HubSettingsView(store: store, displaySettings: display, metricsStore: store.metricsStore)
                         .preferredColorScheme(dark ? .dark : .light)
-                    try Self.render(settingsView, width: 360, height: 520,
+                    try Self.render(settingsView, width: 780, height: 620,
                                name: "\(language.rawValue)-\(dark ? "dark" : "light")-settings")
                 }
             }

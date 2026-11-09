@@ -2,6 +2,16 @@
 
 All notable changes to NetStats will be documented in this file.
 
+## v2.01 (2.0.1) — 2026-11-09
+
+- Fixed clipboard thumbnails overlapping titles and timestamps; wide and tall images now fit inside a fixed thumbnail cell.
+- Fixed notch hover being disabled while the independent Settings window remained open.
+- Simplified weather setup to a four-line text output and explicit Stop and Output action, with explicit missing-shortcut/no-output guidance and backwards-compatible JSON parsing.
+
+- Grouped network download/upload into aligned rows with equal typography and paired history charts; moved interface identifiers out of the quick card.
+- Standardized Dock icon boxes and label baselines, including Shelf.
+- Moved all preferences into one reusable standalone Settings window, shared by the menu bar, notch and detailed monitor.
+
 ## v2.00 (2.0.0) — 2026-10-22
 
 - Added an opt-in physical-notch hover card with a 1-second dwell and 0.3-second dismissal grace period.

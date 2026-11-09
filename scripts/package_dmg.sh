@@ -15,7 +15,9 @@ rm -rf "$STAGING_DIR" "$DMG_PATH"
 mkdir -p "$STAGING_DIR" "$DIST_DIR"
 cp -R "$APP_PATH" "$STAGING_DIR/$APP_NAME.app"
 
-if [[ -n "${NETSTATS_CODESIGN_IDENTITY:-}" ]]; then
+if [[ "${NETSTATS_CODESIGN_IDENTITY:-}" == "-" ]]; then
+    codesign --force --sign - "$STAGING_DIR/$APP_NAME.app"
+elif [[ -n "${NETSTATS_CODESIGN_IDENTITY:-}" ]]; then
     codesign \
         --force \
         --timestamp \
@@ -37,7 +39,9 @@ hdiutil create \
 
 rm -rf "$STAGING_DIR"
 
-if [[ -n "${NETSTATS_CODESIGN_IDENTITY:-}" ]]; then
+if [[ "${NETSTATS_CODESIGN_IDENTITY:-}" == "-" ]]; then
+    codesign --force --sign - "$DMG_PATH"
+elif [[ -n "${NETSTATS_CODESIGN_IDENTITY:-}" ]]; then
     codesign \
         --force \
         --timestamp \
@@ -54,5 +58,5 @@ else
     echo "Skipping notarization: NETSTATS_NOTARY_PROFILE is not set" >&2
 fi
 
-shasum -a 256 "$DMG_PATH" > "$DMG_PATH.sha256"
+(cd "$DIST_DIR" && shasum -a 256 "$APP_NAME-$VERSION.dmg" > "$APP_NAME-$VERSION.dmg.sha256")
 echo "$DMG_PATH"

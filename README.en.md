@@ -2,7 +2,7 @@
   <img src="assets/icon/netstats-icon.svg" width="96" alt="NetStats icon">
 </p>
 
-<h1 align="center">NetStats v2.00</h1>
+<h1 align="center">NetStats v2.01</h1>
 
 <p align="center">
   <strong>A 360 pt native glass hub for Network, Device, Calendar, Weather, Clipboard and Shelf. Open it from the menu bar or an optional physical-notch hover entrance, with shared features and settings.</strong>
@@ -13,8 +13,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/autumncry/netstats/releases/download/v2.00/NetStats-2.0.0.dmg">Download v2.00 universal DMG</a> ·
-  <a href="https://github.com/autumncry/netstats/releases/tag/v2.00">Release notes</a> ·
+  <a href="https://github.com/autumncry/netstats/releases/download/v2.01/NetStats-2.0.1.dmg">Download v2.01 universal DMG</a> ·
+  <a href="https://github.com/autumncry/netstats/releases/tag/v2.01">Release notes</a> ·
   <a href="https://autumncry.github.io/netstats/">Explore features and previews</a>
 </p>
 
@@ -52,17 +52,17 @@
 
 ## Install
 
-### v2.00 DMG (recommended)
+### v2.01 DMG (recommended)
 
-Download [NetStats-2.0.0.dmg](https://github.com/autumncry/netstats/releases/download/v2.00/NetStats-2.0.0.dmg), open it, and drag `NetStats.app` to `/Applications`. The universal app contains Apple Silicon (arm64) and Intel (x86_64) builds.
+Download [NetStats-2.0.1.dmg](https://github.com/autumncry/netstats/releases/download/v2.01/NetStats-2.0.1.dmg), open it, and drag `NetStats.app` to `/Applications`. The universal app contains Apple Silicon (arm64) and Intel (x86_64) builds.
 
-[GitHub Release](https://github.com/autumncry/netstats/releases/tag/v2.00) · [SHA-256 checksum](https://github.com/autumncry/netstats/releases/download/v2.00/NetStats-2.0.0.dmg.sha256)
+[GitHub Release](https://github.com/autumncry/netstats/releases/tag/v2.01) · [SHA-256 checksum](https://github.com/autumncry/netstats/releases/download/v2.01/NetStats-2.0.1.dmg.sha256)
 
-v2.00 uses an ad-hoc signature. It is not Developer ID signed or notarized by Apple. macOS may block the first launch; after confirming the download source, allow it in **System Settings > Privacy & Security**. See the release page for instructions.
+v2.01 uses an ad-hoc signature. It is not Developer ID signed or notarized by Apple. macOS may block the first launch; after confirming the download source, allow it in **System Settings > Privacy & Security**. See the release page for instructions.
 
 ### Homebrew and npm
 
-The separate [Homebrew tap](https://github.com/autumncry/homebrew-tap) has not been updated to v2.00, and `@autumncry/netstats` has not been published to npm. Use the DMG above for this version, or build from source.
+The separate [Homebrew tap](https://github.com/autumncry/homebrew-tap) has not been updated to v2.01, and `@autumncry/netstats` has not been published to npm. Use the DMG above for this version, or build from source.
 
 ## Requirements
 
@@ -78,7 +78,7 @@ The separate [Homebrew tap](https://github.com/autumncry/homebrew-tap) has not b
 
 | Feature | What it provides |
 | --- | --- |
-| Network | Live upload/download rates, short history, session totals and active interfaces. |
+| Network | Aligned download/upload rows, paired history and totals since launch. Interface information stays in the detailed monitor. |
 | Device | CPU, GPU model and available load, used/total memory and startup-volume capacity. Disk I/O is aggregated across block devices; unavailable GPU readings show “—”. |
 | Calendar | Month/week browsing, selected-day events and calendar selection after an explicit Full Access grant. Create and edit in the system Calendar app. |
 | Weather | Current Apple Weather through a shortcut you configure and verify, with a 15-minute cache, manual refresh and last successful data retained on failure. See [setup](docs/weather-shortcut.md). |
@@ -89,7 +89,7 @@ The separate [Homebrew tap](https://github.com/autumncry/homebrew-tap) has not b
 
 Click the menu-bar item to open the hub; click again to close it. Enable the notch entrance in Settings for a 1-second hover trigger and 300 ms exit grace. A valid file held over the notch for 500 ms opens Shelf; references are added only when dropped.
 
-Click the bottom Dock to switch features and the gear to open shared Settings. Network, Device and Shelf start enabled; Calendar, Weather and Clipboard start disabled. Passive browsing and Dock clicks do not take focus. Editing, owned popovers and file dragging keep the card open. See the [glass hub guide](docs/notch-hover.md).
+Click the bottom Dock to switch features and the gear to open the standalone Settings window. Network, Device and Shelf start enabled; Calendar, Weather and Clipboard start disabled. Passive browsing and Dock clicks do not take focus. Editing, owned popovers and file dragging keep the card open. Settings remains open when focus moves to another app. See the [glass hub guide](docs/notch-hover.md).
 
 ### Detailed monitoring remains available
 
@@ -117,7 +117,7 @@ Yes. The menu-bar entrance opens the same six-feature hub. Only the optional not
 
 ### Why does macOS say the developer cannot be verified?
 
-The v2.00 DMG is ad-hoc signed, without Developer ID signing or Apple notarization. Download from the [official release](https://github.com/autumncry/netstats/releases/tag/v2.00), check the checksum and follow its first-launch instructions. Building from source is also available.
+The v2.01 DMG is ad-hoc signed, without Developer ID signing or Apple notarization. Download from the [official release](https://github.com/autumncry/netstats/releases/tag/v2.01), check the checksum and follow its first-launch instructions. Building from source is also available.
 
 ### Why is Weather not connected automatically?
 
@@ -131,9 +131,9 @@ The GPU model is available, but load depends on valid data exposed by the driver
 
 NetStats reads configuration, processes, system proxy state and the local Mihomo controller on the same Mac. It does not upload that information to project servers or control/restart Clash Verge Dev.
 
-### Can Homebrew or npm install v2.00?
+### Can Homebrew or npm install v2.01?
 
-Use this page's v2.00 DMG for now. The separate Homebrew tap has not been updated to this version, and the npm package has not been published.
+Use this page's v2.01 DMG for now. The separate Homebrew tap has not been updated to this version, and the npm package has not been published.
 
 ## Build from Source
 
@@ -162,7 +162,7 @@ open dist
 ## Project Docs
 
 - [Website](https://autumncry.github.io/netstats/): six features, previews and downloads
-- [Release Notes](docs/release-notes/v2.00.md): v2.00 notes
+- [Release Notes](docs/release-notes/v2.01.md): v2.01 notes
 - [Glass Hub](docs/notch-hover.md): entrances, interactions and persistence
 - [Weather Setup](docs/weather-shortcut.md): Apple Weather shortcut configuration
 - [Roadmap](docs/roadmap.md): upcoming features, distribution plans and design principles
