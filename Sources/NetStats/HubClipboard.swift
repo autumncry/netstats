@@ -350,8 +350,8 @@ struct ClipboardFeatureView: View {
                             HStack(spacing: 7) {
                                 Button { store.copy(entry) } label: {
                                     HStack(spacing: 8) {
-                                        if entry.kind == .image { ClipboardThumbnail(store: store, entry: entry).frame(width: 30, height: 30) }
-                                        else { Image(systemName: "text.alignleft").foregroundStyle(.secondary).frame(width: 30) }
+                                        if entry.kind == .image { ClipboardThumbnail(store: store, entry: entry) }
+                                        else { Image(systemName: "text.alignleft").foregroundStyle(.secondary).frame(width: 30, height: 30) }
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(entry.text.map { String($0.prefix(160)) } ?? (chinese ? "图片" : "Image")).font(.system(size: 11, weight: .medium)).lineLimit(1)
                                             Text(entry.createdAt, style: .time).font(.system(size: 9)).foregroundStyle(.secondary)
@@ -384,10 +384,27 @@ private struct ClipboardThumbnail: View {
     let entry: ClipboardEntry
     @State private var image: NSImage?
     var body: some View {
+        ClipboardThumbnailContent(image: image)
+            .task(id: entry.id) {
+                image = nil
+                let thumbnail = await store.thumbnail(for: entry)
+                guard !Task.isCancelled else { return }
+                image = thumbnail
+            }
+    }
+}
+
+struct ClipboardThumbnailContent: View {
+    let image: NSImage?
+    var body: some View {
         Group {
-            if let image { Image(nsImage: image).resizable().scaledToFill().clipped() }
+            if let image { Image(nsImage: image).resizable().scaledToFit() }
             else { Image(systemName: "photo").foregroundStyle(.secondary) }
-        }.clipShape(RoundedRectangle(cornerRadius: 4)).task(id: entry.id) { image = await store.thumbnail(for: entry) }
+        }
+        // Establish the thumbnail's bounds before clipping so wide images cannot paint over the row's text.
+        .frame(width: 30, height: 30)
+        .background(.primary.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 }
 

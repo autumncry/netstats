@@ -4,6 +4,108 @@ import XCTest
 @testable import NetStatsCore
 
 final class HubWeatherTests: XCTestCase {
+    func testParsesBeginnerTextWithExplicitUnitsAndReceiptTime() throws {
+        let receivedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        for value in ["16°C", "16 ° C", "16℃"] {
+            let weather = try WeatherSnapshot.parse(Data("NETSTATS_WEATHER_V1\n北京市\n\(value)\n晴".utf8), receivedAt: receivedAt)
+            XCTAssertEqual(weather.location, "北京市")
+            XCTAssertEqual(weather.temperatureC, 16)
+            XCTAssertEqual(weather.condition, "晴")
+            XCTAssertEqual(weather.updatedAt, receivedAt)
+        }
+        let fahrenheit = try WeatherSnapshot.parse(Data("\u{feff}NETSTATS_WEATHER_V1\r\n北京市\r\n61 °F\r\nMostly sunny\r\n".utf8), receivedAt: receivedAt)
+        XCTAssertEqual(fahrenheit.temperatureC, 16.111111, accuracy: 0.00001)
+        let negative = try WeatherSnapshot.parse(Data("NETSTATS_WEATHER_V1\n北京市\n−4℉\nSnow".utf8))
+        XCTAssertEqual(negative.temperatureC, -20, accuracy: 0.00001)
+    }
+
+    func testBeginnerTextRejectsAmbiguousUnitsAndIncompleteOutput() {
+        let invalid = ["NETSTATS_WEATHER_V1\n北京市\n16\n晴",
+                       "NETSTATS_WEATHER_V1\n北京市\n290 K\n晴",
+                       "NETSTATS_WEATHER_V1\n北京市\nNaN°C\n晴",
+                       "NETSTATS_WEATHER_V1\n北京市\n81°C\n晴",
+                       "NETSTATS_WEATHER_V1\n北京市\n177°F\n晴",
+                       "NETSTATS_WEATHER_V1\n\n16°C\n晴",
+                       "NETSTATS_WEATHER_V1\n北京市\n16°C\n",
+                       "NETSTATS_WEATHER_V1\n北京市\n16°C\n晴\nExtra",
+                       "天气\n北京市\n16°C\n晴"]
+        for text in invalid { XCTAssertThrowsError(try WeatherSnapshot.parse(Data(text.utf8)), text) }
+    }
+
+    func testBeginnerTextRejectsUnreplacedSetupPlaceholders() throws {
+        for city in ["【城市】", "【城市变量】", "[City]", "[City variable]"] {
+            XCTAssertThrowsError(try WeatherSnapshot.parse(Data("NETSTATS_WEATHER_V1\n\(city)\n9°C\n晴".utf8)), city)
+        }
+        for condition in ["【天气状况变量】", "【天气状况】", "[Conditions variable]", "[Conditions]"] {
+            XCTAssertThrowsError(try WeatherSnapshot.parse(Data("NETSTATS_WEATHER_V1\n北京市\n9°C\n\(condition)".utf8)), condition)
+        }
+        let valid = try WeatherSnapshot.parse(Data("NETSTATS_WEATHER_V1\n北京市\n9°C\n晴".utf8))
+        XCTAssertEqual(valid.condition, "晴")
+        XCTAssertEqual(valid.location, "北京市")
+    }
+
+    func testShortcutCatalogRequiresTheExactName() throws {
+        let output = Data("Weather\nNetStats Weather copy\nNetStats Weather\n".utf8)
+        XCTAssertTrue(try WeatherShortcutCatalog.contains("NetStats Weather", in: output))
+        XCTAssertFalse(try WeatherShortcutCatalog.contains("NetStats", in: output))
+        XCTAssertFalse(try WeatherShortcutCatalog.contains("netstats weather", in: output))
+        XCTAssertThrowsError(try WeatherShortcutCatalog.contains("NetStats Weather", in: Data(repeating: 97, count: 65_537)))
+    }
+
+    @MainActor
+    func testPreflightOutputCaptureIsCompleteAndBounded() async throws {
+        let runner = WeatherCommandRunner()
+        let names = "Weather\nNetStats Weather\n"
+        _ = try await runner.run(executableURL: URL(fileURLWithPath: "/usr/bin/printf"),
+                                 arguments: ["%s", names], captureOutput: true)
+        XCTAssertEqual(runner.capturedOutput, Data(names.utf8))
+        do {
+            _ = try await runner.run(executableURL: URL(fileURLWithPath: "/usr/bin/printf"),
+                                     arguments: ["%s", String(repeating: "a", count: 80_000)], captureOutput: true)
+            XCTFail("Oversized catalogs must not silently produce a false missing-shortcut result")
+        } catch {
+            XCTAssertEqual(error as? WeatherBridgeError, .shortcutLookupFailed)
+        }
+        XCTAssertEqual(runner.capturedOutput.count, 64 * 1024)
+    }
+
+    @MainActor
+    func testExplicitTestReportsMissingShortcutBeforeRunningBridge() async throws {
+        let suite = "NetStatsWeatherTest-\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var checks = 0
+        let store = WeatherStore(defaults: defaults,
+                                 cacheURL: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString),
+                                 bridgeExecutableURL: URL(fileURLWithPath: "/usr/bin/true"),
+                                 bridgeArguments: { _, _ in [] },
+                                 shortcutPreflight: { name in checks += 1; XCTAssertEqual(name, "NetStats Weather"); return false })
+        store.setEnabled(true)
+        await store.refresh(force: true)
+        XCTAssertEqual(checks, 0)
+        await store.testConnection()
+        XCTAssertEqual(checks, 1)
+        XCTAssertEqual(store.error, .missingShortcut)
+        XCTAssertFalse(store.isConfigured)
+        XCTAssertNil(store.snapshot)
+    }
+
+    @MainActor
+    func testSuccessfulProcessWithoutOutputHasSpecificError() async throws {
+        let suite = "NetStatsWeatherTest-\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        for executable in ["/usr/bin/true", "/usr/bin/touch"] {
+            let store = WeatherStore(defaults: defaults,
+                                     cacheURL: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString),
+                                     bridgeExecutableURL: URL(fileURLWithPath: executable),
+                                     bridgeArguments: { _, output in executable.hasSuffix("touch") ? [output.path] : [] })
+            await store.testConnection()
+            XCTAssertEqual(store.error, .noOutput)
+            XCTAssertFalse(store.isConfigured)
+        }
+    }
+
     func testParsesExplicitCelsiusAndISODate() throws {
         let weather = try WeatherSnapshot.parse(Data(#"{"location":"北京","temperatureC":23.5,"condition":"晴","updatedAt":"2026-10-22T08:30:00Z"}"#.utf8))
         XCTAssertEqual(weather.location, "北京")

@@ -5,7 +5,7 @@ import SwiftUI
 @MainActor
 final class NotchPanelController {
     var openDetails: (() -> Void)?
-    var openLegacySettings: (() -> Void)?
+    var openSettings: (() -> Void)?
 
     private let hubStore: HubStore
     private let displaySettings: DisplaySettings
@@ -30,12 +30,13 @@ final class NotchPanelController {
     private var dragGeneration = 0
     private var dragDwell = NotchFileDragDwell()
     private let reveal = NotchRevealState()
-    private let navigation = HubPanelNavigation()
     private var panel: HubPanel?
     private var connector: HubPanel?
     private var dropAnchor: HubPanel?
     private var anchorDestination: NotchDropDestinationView?
     private var cardDestination: NotchDropDestinationView?
+
+    var isHoverSuppressed: Bool { detailsVisible }
 
     init(hubStore: HubStore, displaySettings: DisplaySettings) {
         self.hubStore = hubStore
@@ -62,10 +63,6 @@ final class NotchPanelController {
                 self?.resizeCard()
                 self?.refreshDropAnchor()
             }
-            .store(in: &subscriptions)
-        navigation.$showingSettings
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.resizeCard() }
             .store(in: &subscriptions)
         configurationChanged()
     }
@@ -95,6 +92,10 @@ final class NotchPanelController {
         reset(animated: false)
         refreshDropAnchor()
         if started { updatePointer() }
+    }
+
+    func dismiss() {
+        reset(animated: false)
     }
 
     private var canMonitor: Bool {
@@ -244,14 +245,14 @@ final class NotchPanelController {
         result.trackPopoverLifecycle()
         result.onKeyboardInteraction = { [weak self] in self?.setUIHeld(true) }
         let root = HubPanelRootView(
-            store: hubStore, displaySettings: displaySettings, navigation: navigation,
+            store: hubStore, displaySettings: displaySettings,
             requestKeyboard: { [weak self] in
                 self?.panel?.requestKeyboard()
                 self?.setUIHeld(true)
             },
             holdInteraction: { [weak self] in self?.setUIHeld($0) },
             openDetails: { [weak self] in self?.openDetails?() },
-            openLegacySettings: { [weak self] in self?.openLegacySettings?() }
+            openSettings: { [weak self] in self?.openSettings?() }
         )
         let hosting = NSHostingView(rootView: NotchPanelContent(content: root, reveal: reveal))
         let destination = makeDestination(isAnchor: false)
@@ -273,7 +274,6 @@ final class NotchPanelController {
         revealGeneration += 1
         if selectDefault {
             hubStore.selectDefault()
-            navigation.showingSettings = false
         }
         if panel == nil { panel = makePanel() }
         cardPresented = true
@@ -314,7 +314,7 @@ final class NotchPanelController {
 
     private func resizeCard() {
         guard cardPresented, let geometry, let panel else { return }
-        let height: CGFloat = navigation.showingSettings ? 520 : hubStore.currentHeight
+        let height = hubStore.currentHeight
         let frame = geometry.cardFrame(height: height, width: 360)
         panel.setFrame(frame, display: true)
         let gap = geometry.notchFrame.minY - frame.maxY
@@ -369,7 +369,6 @@ final class NotchPanelController {
             if isAnchor { self.beginDragDwell() }
             else {
                 self.hubStore.select(feature: .shelf)
-                self.navigation.showingSettings = false
                 self.resizeCard()
             }
             self.updatePointer()
@@ -384,7 +383,6 @@ final class NotchPanelController {
             guard let self, self.acceptsShelfFiles else { return }
             self.hubStore.shelf.add(urls: urls)
             self.hubStore.select(feature: .shelf)
-            self.navigation.showingSettings = false
             self.interaction.expandForFileDrag()
             if !self.cardPresented { self.showCard(selectDefault: false) }
             self.resizeCard()
@@ -407,7 +405,6 @@ final class NotchPanelController {
             else { return }
             self.dragTask = nil
             self.hubStore.select(feature: .shelf)
-            self.navigation.showingSettings = false
             self.interaction.expandForFileDrag()
             if !self.cardPresented { self.showCard(selectDefault: false) }
             self.resizeCard()

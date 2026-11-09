@@ -12,13 +12,12 @@ final class StatusBarController: NSObject {
     private let statusItem: NSStatusItem
     private lazy var panel = makePanel()
     private var hubPanel: HubPanel?
-    private let hubNavigation = HubPanelNavigation()
     private var environmentObservers: [(NotificationCenter, NSObjectProtocol)] = []
     private var trackingMenus = Set<ObjectIdentifier>()
     private var cancellables = Set<AnyCancellable>()
     private var eventMonitors: [Any] = []
-    private let navigation = MonitorPanelNavigation()
     var onVisibilityChange: ((Bool) -> Void)?
+    var openSettings: (() -> Void)?
 
     private var currentPanelSize: NSSize {
         displaySettings.panelStyle.panelSize
@@ -57,11 +56,15 @@ final class StatusBarController: NSObject {
         closePanel()
     }
 
-    func show(page: MonitorPanelPage) {
+    func showDetails() {
         guard let button = statusItem.button else { return }
         closeHubPanel()
-        navigation.page = page
         showPanel(relativeTo: button)
+    }
+
+    func dismiss() {
+        closeHubPanel()
+        closePanel()
     }
 
     private func configureStatusItem() {
@@ -94,7 +97,7 @@ final class StatusBarController: NSObject {
                 displaySettings: displaySettings,
                 ipGeolocationStore: ipGeolocationStore,
                 clashStatusStore: clashStatusStore,
-                navigation: navigation
+                openSettings: { [weak self] in self?.openSettings?() }
             )
         )
         panel.hasShadow = true
@@ -165,10 +168,6 @@ final class StatusBarController: NSObject {
             .store(in: &cancellables)
 
         hubStore.$selected
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.resizeHubPanel() }
-            .store(in: &cancellables)
-        hubNavigation.$showingSettings
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.resizeHubPanel() }
             .store(in: &cancellables)
@@ -281,7 +280,6 @@ final class StatusBarController: NSObject {
     private func showHubPanel(relativeTo button: NSStatusBarButton) {
         closePanel()
         hubStore.selectDefault()
-        hubNavigation.showingSettings = false
         if hubPanel == nil { hubPanel = makeHubPanel() }
         onVisibilityChange?(true)
         resizeHubPanel()
@@ -292,24 +290,22 @@ final class StatusBarController: NSObject {
         let result = HubPanel()
         result.trackPopoverLifecycle()
         let root = HubPanelRootView(
-            store: hubStore, displaySettings: displaySettings, navigation: hubNavigation,
+            store: hubStore, displaySettings: displaySettings,
             requestKeyboard: { [weak self] in self?.hubPanel?.requestKeyboard() },
             holdInteraction: { _ in },
-            openDetails: { [weak self] in self?.show(page: .monitor) },
-            openLegacySettings: { [weak self] in self?.show(page: .settings) }
+            openDetails: { [weak self] in self?.showDetails() },
+            openSettings: { [weak self] in self?.openSettings?() }
         )
         let hosting = NSHostingView(rootView: root)
         let destination = NotchDropDestinationView(frame: .zero)
         destination.acceptsFiles = { [weak self] in self?.hubStore.settings.enabledFeatures.contains(.shelf) == true }
         destination.onEnter = { [weak self] in
             self?.hubStore.select(feature: .shelf)
-            self?.hubNavigation.showingSettings = false
             self?.resizeHubPanel()
         }
         destination.onDrop = { [weak self] urls in
             self?.hubStore.shelf.add(urls: urls)
             self?.hubStore.select(feature: .shelf)
-            self?.hubNavigation.showingSettings = false
             self?.resizeHubPanel()
         }
         destination.embed(hosting)
@@ -319,7 +315,7 @@ final class StatusBarController: NSObject {
 
     private func resizeHubPanel() {
         guard let hubPanel, let button = statusItem.button else { return }
-        let height: CGFloat = hubNavigation.showingSettings ? 520 : hubStore.currentHeight
+        let height = hubStore.currentHeight
         let size = NSSize(width: 360, height: height)
         hubPanel.setFrame(NSRect(origin: panelOrigin(relativeTo: button, size: size), size: size), display: true)
     }
@@ -458,7 +454,7 @@ private struct MonitorPanelRootView: View {
     @ObservedObject var displaySettings: DisplaySettings
     @ObservedObject var ipGeolocationStore: IPGeolocationStore
     @ObservedObject var clashStatusStore: ClashStatusStore
-    @ObservedObject var navigation: MonitorPanelNavigation
+    var openSettings: () -> Void
 
     var body: some View {
         MonitorPopoverView(
@@ -466,18 +462,13 @@ private struct MonitorPanelRootView: View {
             displaySettings: displaySettings,
             ipGeolocationStore: ipGeolocationStore,
             clashStatusStore: clashStatusStore,
-            page: $navigation.page
+            openSettings: openSettings
         )
         .frame(
             width: displaySettings.panelStyle.panelSize.width,
             height: displaySettings.panelStyle.panelSize.height
         )
     }
-}
-
-@MainActor
-private final class MonitorPanelNavigation: ObservableObject {
-    @Published var page = MonitorPanelPage.monitor
 }
 
 private extension PanelStyle {

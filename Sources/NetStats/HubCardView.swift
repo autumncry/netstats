@@ -65,10 +65,14 @@ private struct HubCardBody: View {
             HStack(spacing: 2) {
                 ForEach(HubFeature.allCases.filter { settings.enabledFeatures.contains($0) }) { feature in
                     Button { store.select(feature: feature) } label: {
-                        VStack(spacing: 3) {
-                            Image(systemName: feature.symbol).font(.system(size: 15, weight: .medium))
+                        VStack(spacing: 4) {
+                            Image(systemName: feature.symbol)
+                                .font(.system(size: 16, weight: .medium))
+                                .symbolRenderingMode(.monochrome)
+                                .frame(width: 24, height: 22, alignment: .center)
                             Text(feature.title(language)).font(.system(size: 9, weight: .medium))
                                 .lineLimit(1).minimumScaleFactor(0.8)
+                                .frame(height: 13, alignment: .center)
                         }
                         .frame(maxWidth: .infinity).frame(height: 40)
                         .foregroundStyle(store.selected == feature ? Color.accentColor : Color.secondary)
@@ -82,7 +86,9 @@ private struct HubCardBody: View {
                 Button(action: openSettings) {
                     Image(systemName: "gearshape").font(.system(size: 15))
                         .foregroundStyle(.secondary).frame(width: 29, height: 40).contentShape(Rectangle())
-                }.buttonStyle(.plain).help(tr("设置", "Settings"))
+                }.buttonStyle(.plain)
+                    .help(tr("打开设置窗口", "Open Settings window"))
+                    .accessibilityLabel(tr("打开设置窗口", "Open Settings window"))
             }
             .padding(.horizontal, 8).padding(.vertical, 6)
             .background(.primary.opacity(0.025))
@@ -120,53 +126,99 @@ private struct HubNetworkView: View {
     @ObservedObject var metricsStore: MetricsStore
     var language: AppLanguage
     var body: some View {
-        let net = metricsStore.snapshot.network
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 15) {
-                rate(net.downloadBytesPerSecond, label: language == .simplifiedChinese ? "下载" : "Download", symbol: "arrow.down", primary: true)
+        HubNetworkContent(network: metricsStore.snapshot.network,
+                          history: metricsStore.history, language: language)
+    }
+}
+
+/// Related transfer measurements share a reading column and a common chart scale.
+/// Interface identifiers belong in the detailed monitor, not the quick card.
+struct HubNetworkContent: View {
+    let network: NetworkSnapshot
+    let history: MetricHistory
+    let language: AppLanguage
+
+    var body: some View {
+        let downloads = history.samples.map(\.networkDownloadBytesPerSecond)
+        let uploads = history.samples.map(\.networkUploadBytesPerSecond)
+        let peak = max((downloads + uploads).filter(\.isFinite).max() ?? 0, 1)
+        VStack(spacing: 8) {
+            transferRow(value: network.downloadBytesPerSecond,
+                        label: tr("下载", "Download"), symbol: "arrow.down",
+                        tint: .blue, samples: downloads, peak: peak)
+            transferRow(value: network.uploadBytesPerSecond,
+                        label: tr("上传", "Upload"), symbol: "arrow.up",
+                        tint: .orange, samples: uploads, peak: peak)
+            HStack(spacing: 8) {
+                Text(tr("启动后累计", "Since launch"))
                 Spacer(minLength: 0)
-                rate(net.uploadBytesPerSecond, label: language == .simplifiedChinese ? "上传" : "Upload", symbol: "arrow.up", primary: false)
+                Text("↓ \(ByteFormatter.memory(network.sessionDownloadedBytes))")
+                Text("↑ \(ByteFormatter.memory(network.sessionUploadedBytes))")
             }
-            HubSparkline(values: metricsStore.history.samples.map(\.networkDownloadBytesPerSecond))
-                .frame(height: 26).padding(.top, 1).accessibilityHidden(true)
-            HStack(spacing: 6) {
-                Text(language == .simplifiedChinese ? "本次会话" : "Session")
-                Text("↓ \(ByteFormatter.memory(net.sessionDownloadedBytes))")
-                Text("↑ \(ByteFormatter.memory(net.sessionUploadedBytes))")
-                Spacer(minLength: 2)
-                Text(net.activeInterfaces.joined(separator: " · ")).lineLimit(1)
-            }.font(.system(size: 9)).monospacedDigit().foregroundStyle(.secondary)
+            .font(.system(size: 10)).monospacedDigit().foregroundStyle(.secondary)
+            .lineLimit(1).minimumScaleFactor(0.8)
+            .padding(.top, 4)
+            .overlay(alignment: .top) { Rectangle().fill(.primary.opacity(0.07)).frame(height: 0.5) }
         }
     }
-    private func rate(_ bytes: Double, label: String, symbol: String, primary: Bool) -> some View {
-        let parts = ByteFormatter.speed(bytes.isFinite ? max(0, bytes) : 0).split(separator: " ", maxSplits: 1)
-        return VStack(alignment: .leading, spacing: 2) {
-            Label(label, systemImage: symbol).font(.system(size: 10, weight: .medium))
-                .foregroundStyle(primary ? Color.accentColor : .secondary)
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(parts.first.map(String.init) ?? "0").font(.system(size: primary ? 30 : 22, weight: .semibold, design: .rounded))
-                Text(parts.count > 1 ? String(parts[1]) : "B/s").font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
-            }.monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+
+    private func transferRow(value: Double, label: String, symbol: String,
+                             tint: Color, samples: [Double], peak: Double) -> some View {
+        let valid = value.isFinite && value >= 0 && value < Double(UInt64.max)
+        let formatted = valid ? ByteFormatter.speed(value) : "—"
+        let parts = formatted.split(separator: " ", maxSplits: 1)
+        return HStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 24, height: 24)
+                .background(tint.opacity(0.1), in: Circle())
+            Text(label).font(.system(size: 11, weight: .medium))
+                .frame(width: 55, alignment: .leading)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(parts.first.map(String.init) ?? "—")
+                    .font(.system(size: 23, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .frame(minWidth: 40, alignment: .trailing)
+                Text(parts.count > 1 ? String(parts[1]) : "")
+                    .font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary)
+                    .frame(width: 32, alignment: .leading)
+            }
+            .frame(width: 96, alignment: .trailing)
+            .lineLimit(1).minimumScaleFactor(0.65)
+            Spacer(minLength: 0)
+            HubSparkline(values: samples, peak: peak, tint: tint)
+                .frame(width: 84, height: 25).accessibilityHidden(true)
         }
+        .frame(height: 32)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(formatted)
+    }
+
+    private func tr(_ chinese: String, _ english: String) -> String {
+        language == .simplifiedChinese ? chinese : english
     }
 }
 
 private struct HubSparkline: View {
     var values: [Double]
+    var peak: Double
+    var tint: Color
     var body: some View {
         GeometryReader { geo in
             let samples = values.isEmpty ? [0, 0] : values
-            let peak = max(samples.filter(\.isFinite).max() ?? 0, 1)
             let points = samples.enumerated().map { index, value in
                 CGPoint(x: geo.size.width * Double(index) / Double(max(samples.count - 1, 1)),
-                        y: geo.size.height * (1 - min(max(value.isFinite ? value / peak : 0, 0), 1)) * 0.9)
+                        y: 2 + (geo.size.height - 4) * (1 - min(max(value.isFinite ? value / peak : 0, 0), 1)))
             }
             Path { path in
                 guard let first = points.first else { return }
                 path.move(to: first)
                 for point in points.dropFirst() { path.addLine(to: point) }
-            }.stroke(Color.accentColor, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-            Rectangle().fill(.primary.opacity(0.06)).frame(height: 0.5).frame(maxHeight: .infinity, alignment: .bottom)
+            }.stroke(tint, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+            Rectangle().fill(.primary.opacity(0.06)).frame(height: 0.5)
+                .frame(maxHeight: .infinity, alignment: .bottom)
         }
     }
 }

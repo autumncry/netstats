@@ -5,10 +5,14 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIGURATION="${1:-release}"
 APP_NAME="NetStats"
 APP_DIR="$ROOT_DIR/build/$APP_NAME.app"
-EXECUTABLE_PATH="$ROOT_DIR/.build/$CONFIGURATION/$APP_NAME"
 
 cd "$ROOT_DIR"
-swift build -c "$CONFIGURATION"
+BUILD_ARGS=(-c "$CONFIGURATION" --product "$APP_NAME")
+if [[ "${NETSTATS_UNIVERSAL:-0}" == "1" ]]; then
+    BUILD_ARGS+=(--arch arm64 --arch x86_64 --scratch-path "$ROOT_DIR/.build/universal")
+fi
+swift build "${BUILD_ARGS[@]}"
+EXECUTABLE_PATH="$(swift build "${BUILD_ARGS[@]}" --show-bin-path)/$APP_NAME"
 
 rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"

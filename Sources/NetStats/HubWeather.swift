@@ -9,8 +9,15 @@ struct WeatherSnapshot: Codable, Equatable, Sendable {
     let condition: String
     let updatedAt: Date
 
-    static func parse(_ data: Data) throws -> WeatherSnapshot {
-        guard data.count <= 64 * 1024,
+    static func parse(_ data: Data, receivedAt: Date = Date()) throws -> WeatherSnapshot {
+        guard data.count <= 64 * 1024 else { throw WeatherBridgeError.invalidOutput }
+        if let raw = String(data: data, encoding: .utf8) {
+            let text = raw.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "\u{feff}")))
+            if text.hasPrefix("NETSTATS_WEATHER_V1") {
+                return try parseBeginnerText(text, receivedAt: receivedAt)
+            }
+        }
+        guard
               let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let rawLocation = object["location"] as? String,
               let rawCondition = object["condition"] as? String,
@@ -34,6 +41,33 @@ struct WeatherSnapshot: Codable, Equatable, Sendable {
             throw WeatherBridgeError.invalidOutput
         }
         return WeatherSnapshot(location: location, temperatureC: temperature.doubleValue, condition: condition, updatedAt: date)
+    }
+
+    private static func parseBeginnerText(_ text: String, receivedAt: Date) throws -> WeatherSnapshot {
+        let lines = text.replacingOccurrences(of: "\r\n", with: "\n")
+            .components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+        let setupPlaceholders: Set<String> = [
+            "【城市】", "【城市变量】", "[City]", "[City variable]",
+            "【天气状况变量】", "【天气状况】", "[Conditions variable]", "[Conditions]"
+        ]
+        guard lines.count == 4, lines[0] == "NETSTATS_WEATHER_V1",
+              !lines[1].isEmpty, lines[1].count <= 120,
+              !lines[3].isEmpty, lines[3].count <= 120,
+              !setupPlaceholders.contains(lines[1]), !setupPlaceholders.contains(lines[3]) else {
+            throw WeatherBridgeError.invalidOutput
+        }
+        let temperature = lines[2].replacingOccurrences(of: "℃", with: "°C")
+            .replacingOccurrences(of: "℉", with: "°F")
+            .replacingOccurrences(of: "−", with: "-")
+        let pattern = #"^([+-]?[0-9]+(?:\.[0-9]+)?)\s*°\s*([CF])$"#
+        let expression = try NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
+        guard let match = expression.firstMatch(in: temperature, range: NSRange(temperature.startIndex..., in: temperature)),
+              let numberRange = Range(match.range(at: 1), in: temperature),
+              let unitRange = Range(match.range(at: 2), in: temperature),
+              let number = Double(temperature[numberRange]), number.isFinite else { throw WeatherBridgeError.invalidOutput }
+        let celsius = temperature[unitRange].uppercased() == "F" ? (number - 32) * 5 / 9 : number
+        guard (-100...80).contains(celsius), receivedAt.timeIntervalSince1970.isFinite else { throw WeatherBridgeError.invalidOutput }
+        return WeatherSnapshot(location: lines[1], temperatureC: celsius, condition: lines[3], updatedAt: receivedAt)
     }
 
     var systemImage: String {
@@ -64,7 +98,74 @@ enum WeatherBridgeError: Error, Equatable {
     case timedOut
     case cancelled
     case invalidOutput
+    case missingShortcut
+    case noOutput
+    case shortcutLookupFailed
     case busy
+}
+
+enum WeatherShortcutCatalog {
+    static func contains(_ name: String, in data: Data) throws -> Bool {
+        guard data.count <= 64 * 1024, let text = String(data: data, encoding: .utf8) else {
+            throw WeatherBridgeError.shortcutLookupFailed
+        }
+        return text.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n").contains(name)
+    }
+}
+
+/// Drains a nonblocking pipe on one serial queue, keeping at most64KiB in memory.
+/// Finish never waits for a descendant that might keep an inherited pipe open.
+private final class WeatherOutputCapture: @unchecked Sendable {
+    let pipe = Pipe()
+    private let queue = DispatchQueue(label: "com.ronnycao.netstats.weather-output")
+    private var source: DispatchSourceRead?
+    private var data = Data()
+    private var exceededLimit = false
+    private var closed = false
+    private let limit = 64 * 1024
+
+    init() throws {
+        let fd = pipe.fileHandleForReading.fileDescriptor
+        let flags = fcntl(fd, F_GETFL)
+        guard flags != -1, fcntl(fd, F_SETFL, flags | O_NONBLOCK) != -1 else {
+            throw WeatherBridgeError.launchFailed
+        }
+        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
+        self.source = source
+        source.setEventHandler { [weak self] in self?.drain() }
+        source.resume()
+    }
+
+    func closeWriter() { try? pipe.fileHandleForWriting.close() }
+
+    func finish(_ completion: @escaping @Sendable (Data, Bool) -> Void) {
+        queue.async {
+            if !self.closed {
+                self.drain()
+                self.source?.cancel()
+                self.source = nil
+                try? self.pipe.fileHandleForReading.close()
+                self.closed = true
+            }
+            completion(self.data, self.exceededLimit)
+        }
+    }
+
+    private func drain() {
+        guard !closed else { return }
+        var bytes = [UInt8](repeating: 0, count: 4096)
+        for _ in 0..<32 {
+            let count = Darwin.read(pipe.fileHandleForReading.fileDescriptor, &bytes, bytes.count)
+            if count > 0 {
+                let available = max(0, limit - data.count)
+                data.append(contentsOf: bytes.prefix(min(count, available)))
+                if count > available { exceededLimit = true }
+            } else {
+                if count == 0 { source?.cancel(); source = nil }
+                return
+            }
+        }
+    }
 }
 
 /// Owns the actual CLI process until it has exited, including timeout escalation.
@@ -77,26 +178,38 @@ final class WeatherCommandRunner {
     private var failure: WeatherBridgeError?
     private var runID: UUID?
 
+    private(set) var capturedOutput = Data()
     var runningProcessIdentifier: Int32? { process?.processIdentifier }
 
-    func run(executableURL: URL, arguments: [String], timeout: TimeInterval = 20) async throws -> Int32 {
+    func run(executableURL: URL, arguments: [String], timeout: TimeInterval = 20, captureOutput: Bool = false) async throws -> Int32 {
         guard process == nil else { throw WeatherBridgeError.busy }
         let identifier = UUID()
+        let capture = captureOutput ? try WeatherOutputCapture() : nil
+        capturedOutput = Data()
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { result in
                 guard !Task.isCancelled else {
+                    capture?.closeWriter()
+                    capture?.finish { _, _ in }
                     result.resume(throwing: WeatherBridgeError.cancelled)
                     return
                 }
                 let child = Process()
                 child.executableURL = executableURL
                 child.arguments = arguments
-                child.standardOutput = FileHandle.nullDevice
+                if let capture { child.standardOutput = capture.pipe }
+                else { child.standardOutput = FileHandle.nullDevice }
                 child.standardError = FileHandle.nullDevice
                 child.standardInput = FileHandle.nullDevice
                 child.terminationHandler = { [weak self] child in
                     let status = child.terminationStatus
-                    Task { @MainActor in self?.finished(identifier: identifier, status: status) }
+                    if let capture {
+                        capture.finish { [weak self] output, exceeded in
+                            Task { @MainActor in self?.finished(identifier: identifier, status: status, output: output, outputExceededLimit: exceeded) }
+                        }
+                    } else {
+                        Task { @MainActor in self?.finished(identifier: identifier, status: status) }
+                    }
                 }
                 process = child
                 continuation = result
@@ -104,12 +217,15 @@ final class WeatherCommandRunner {
                 failure = nil
                 do {
                     try child.run()
+                    capture?.closeWriter()
                     timeoutTask = Task { [weak self] in
                         do { try await Task.sleep(for: .seconds(max(0.01, timeout))) }
                         catch { return }
                         self?.cancel(identifier: identifier, reason: .timedOut)
                     }
                 } catch {
+                    capture?.closeWriter()
+                    capture?.finish { _, _ in }
                     finished(identifier: identifier, status: -1, launchFailure: true)
                 }
             }
@@ -138,10 +254,11 @@ final class WeatherCommandRunner {
         }
     }
 
-    private func finished(identifier: UUID, status: Int32, launchFailure: Bool = false) {
+    private func finished(identifier: UUID, status: Int32, launchFailure: Bool = false, output: Data = Data(), outputExceededLimit: Bool = false) {
         guard runID == identifier else { return }
         let result = continuation
-        let error = failure ?? (launchFailure ? .launchFailed : nil)
+        let error = failure ?? (launchFailure ? .launchFailed : outputExceededLimit ? .shortcutLookupFailed : nil)
+        capturedOutput = output
         timeoutTask?.cancel()
         killTask?.cancel()
         timeoutTask = nil
@@ -182,6 +299,7 @@ final class WeatherStore: ObservableObject {
     private let cacheURL: URL
     private let bridgeExecutableURL: URL
     private let bridgeArguments: (String, URL) -> [String]
+    private let shortcutPreflight: ((String) async throws -> Bool)?
     private let runner = WeatherCommandRunner()
     private var enabled = false
     private var started = false
@@ -191,11 +309,15 @@ final class WeatherStore: ObservableObject {
 
     init(defaults: UserDefaults = .standard, cacheURL: URL? = nil,
          bridgeExecutableURL: URL = URL(fileURLWithPath: "/usr/bin/shortcuts"),
-         bridgeArguments: ((String, URL) -> [String])? = nil) {
+         bridgeArguments: ((String, URL) -> [String])? = nil,
+         shortcutPreflight: ((String) async throws -> Bool)? = nil) {
         self.defaults = defaults
         self.bridgeExecutableURL = bridgeExecutableURL
+        self.shortcutPreflight = shortcutPreflight
         self.bridgeArguments = bridgeArguments ?? { name, output in
-            ["run", name, "--output-path", output.path, "--output-type", "public.utf8-plain-text"]
+            // Let Shortcuts infer plain text from the .txt destination. On
+            // macOS 27, forcing public.utf8-plain-text can exit 0 with no file.
+            ["run", name, "--output-path", output.path]
         }
         self.cacheURL = cacheURL ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("NetStats", isDirectory: true).appendingPathComponent("weather-cache.json")
@@ -267,17 +389,38 @@ final class WeatherStore: ObservableObject {
         generation = token
         isRefreshing = true
         error = nil
-        let temporary = FileManager.default.temporaryDirectory.appendingPathComponent("netstats-weather-\(UUID().uuidString).json")
+        let deadline = ProcessInfo.processInfo.systemUptime + 20
+        let temporary = FileManager.default.temporaryDirectory.appendingPathComponent("netstats-weather-\(UUID().uuidString).txt")
         defer {
             try? FileManager.default.removeItem(at: temporary)
             if generation == token { isRefreshing = false }
         }
         do {
-            _ = try await runner.run(executableURL: bridgeExecutableURL, arguments: bridgeArguments(name, temporary))
+            if explicitTest {
+                if let shortcutPreflight {
+                    guard try await shortcutPreflight(name) else { throw WeatherBridgeError.missingShortcut }
+                } else if bridgeExecutableURL.standardizedFileURL.path == "/usr/bin/shortcuts" {
+                    _ = try await runner.run(executableURL: bridgeExecutableURL, arguments: ["list"],
+                                             timeout: max(0.01, deadline - ProcessInfo.processInfo.systemUptime), captureOutput: true)
+                    guard try WeatherShortcutCatalog.contains(name, in: runner.capturedOutput) else {
+                        throw WeatherBridgeError.missingShortcut
+                    }
+                }
+                guard generation == token, !Task.isCancelled else { return }
+            }
+            let remaining = deadline - ProcessInfo.processInfo.systemUptime
+            guard remaining > 0 else { throw WeatherBridgeError.timedOut }
+            _ = try await runner.run(executableURL: bridgeExecutableURL, arguments: bridgeArguments(name, temporary), timeout: remaining)
             guard generation == token else { return }
+            guard FileManager.default.fileExists(atPath: temporary.path) else { throw WeatherBridgeError.noOutput }
             let values = try temporary.resourceValues(forKeys: [.fileSizeKey])
             guard let size = values.fileSize, size <= 64 * 1024 else { throw WeatherBridgeError.invalidOutput }
-            let weather = try WeatherSnapshot.parse(Data(contentsOf: temporary))
+            guard size > 0 else { throw WeatherBridgeError.noOutput }
+            let output = try Data(contentsOf: temporary)
+            if let text = String(data: output, encoding: .utf8), text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                throw WeatherBridgeError.noOutput
+            }
+            let weather = try WeatherSnapshot.parse(output)
             guard weather.updatedAt <= Date().addingTimeInterval(10 * 60) else { throw WeatherBridgeError.invalidOutput }
             snapshot = weather
             cachedAt = Date()
