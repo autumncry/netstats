@@ -1,0 +1,44 @@
+{
+  "version": "v2.01",
+  "sourceCommit": "011980254b4c2b87225e7d924ab7910807d3d82c",
+  "kind": "native-view-render",
+  "captureMethod": "NSHostingView.cacheDisplay(in:to:)",
+  "data": "synthetic example data",
+  "appearance": "light; existing Reduce Transparency branch",
+  "backingScale": 2,
+  "notDesktopScreenshot": true,
+  "assets": [
+    {
+      "file": "network-zh.png",
+      "width": 784,
+      "height": 528,
+      "bytes": 61310,
+      "sha256": "d44d434b66a4545d26b8699ade84be2307b8824d8e79e8edc4fa8349e66ce7d1"
+    },
+    {
+      "file": "device-zh.png",
+      "width": 784,
+      "height": 528,
+      "bytes": 66716,
+      "sha256": "65992ca44fbf8604ad5daeeb402b9d5f9c16d97ca93236dde994e1702ebb6024"
+    },
+    {
+      "file": "network-en.png",
+      "width": 784,
+      "height": 528,
+      "bytes": 62936,
+      "sha256": "820b83a9e66952bd22131267edb6181fbbb37fb1bb2b0fe1d761ad9de2f76eac"
+    },
+    {
+      "file": "device-en.png",
+      "width": 784,
+      "height": 528,
+      "bytes": 67502,
+      "sha256": "fbcce9b12c35ad30f6e4b7d0bc44b1c77fad4171df33cb1c3dc12adc571e5dd2"
+    }
+  ],
+  "presentationCanvasPoints": {
+    "width": 392,
+    "height": 264
+  }
+}
