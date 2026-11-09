@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/autumncry/netstats/releases/latest"><img src="https://img.shields.io/github/v/release/autumncry/netstats?label=版本" alt="最新版本"></a>
+  <a href="https://github.com/autumncry/netstats/releases/latest"><img src="https://img.shields.io/github/v/release/autumncry/netstats?label=%E7%89%88%E6%9C%AC" alt="最新版本"></a>
   <img src="https://img.shields.io/badge/macOS-14%2B-222222?logo=apple" alt="macOS 14 或更高版本">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2f8f46" alt="MIT 开源协议"></a>
 </p>
