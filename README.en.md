@@ -33,6 +33,8 @@ Check network and device activity, glance at your calendar and weather, find som
 
 ## Installation
 
+The source branch prepares **v2.02 (not released yet)** with animated two-finger paging, automatic top-bar fallback, launch at login, About, and redesigned Terminal details. [Changes and previews](docs/release-notes/v2.02.md). The download below is the published v2.01 release.
+
 **[Download NetStats-2.0.1.dmg](https://github.com/autumncry/netstats/releases/download/v2.01/NetStats-2.0.1.dmg)** · macOS 14+ · Apple Silicon / Intel
 
 When upgrading, quit the old version first. Replacing the app preserves existing settings and local history.

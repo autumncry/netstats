@@ -2,6 +2,15 @@
 
 All notable changes to NetStats will be documented in this file.
 
+## v2.02 (2.0.2) — Unreleased
+
+- Redesigned Terminal details with a charcoal/warm-orange palette, compact monospaced sections and scrollable content; removed the synthetic Health score and made display switches apply consistently.
+- Fixed the Device card clipping disk details and I/O above the feature bar by reserving enough height for its full content.
+- Added two-finger horizontal paging across enabled features, with vertical scrolling, editing and drag interactions protected.
+- Added directional page transitions and coordinated panel resizing, with reduced-motion fades and isolated outgoing-page interactions.
+- Added automatic notch detection with a top-bar fallback for displays without a physical notch, plus manual mode selection.
+- Added system-backed launch-at-login settings and an About page with version, copyright and GitHub support links.
+
 ## v2.01 (2.0.1) — 2026-11-09
 
 - Fixed clipboard thumbnails overlapping titles and timestamps; wide and tall images now fit inside a fixed thumbnail cell.

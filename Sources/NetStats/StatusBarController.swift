@@ -14,6 +14,8 @@ final class StatusBarController: NSObject {
     private var hubPanel: HubPanel?
     private var environmentObservers: [(NotificationCenter, NSObjectProtocol)] = []
     private var trackingMenus = Set<ObjectIdentifier>()
+    private var hubInteractionHeld = false
+    private var hubFileDragging = false
     private var cancellables = Set<AnyCancellable>()
     private var eventMonitors: [Any] = []
     var onVisibilityChange: ((Bool) -> Void)?
@@ -169,7 +171,10 @@ final class StatusBarController: NSObject {
 
         hubStore.$selected
             .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.resizeHubPanel() }
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.resizeHubPanel(animated: self.hubStore.pageTransitionDirection != nil)
+            }
             .store(in: &cancellables)
         hubStore.settings.objectWillChange
             .receive(on: RunLoop.main)
@@ -289,10 +294,14 @@ final class StatusBarController: NSObject {
     private func makeHubPanel() -> HubPanel {
         let result = HubPanel()
         result.trackPopoverLifecycle()
+        result.onNavigatePage = { [weak hubStore] direction in hubStore?.selectAdjacent(direction) ?? false }
         let root = HubPanelRootView(
             store: hubStore, displaySettings: displaySettings,
             requestKeyboard: { [weak self] in self?.hubPanel?.requestKeyboard() },
-            holdInteraction: { _ in },
+            holdInteraction: { [weak self] held in
+                self?.hubInteractionHeld = held
+                self?.updateHubPageSuppression()
+            },
             openDetails: { [weak self] in self?.showDetails() },
             openSettings: { [weak self] in self?.openSettings?() }
         )
@@ -300,8 +309,14 @@ final class StatusBarController: NSObject {
         let destination = NotchDropDestinationView(frame: .zero)
         destination.acceptsFiles = { [weak self] in self?.hubStore.settings.enabledFeatures.contains(.shelf) == true }
         destination.onEnter = { [weak self] in
+            self?.hubFileDragging = true
+            self?.updateHubPageSuppression()
             self?.hubStore.select(feature: .shelf)
             self?.resizeHubPanel()
+        }
+        destination.onExit = { [weak self] in
+            self?.hubFileDragging = false
+            self?.updateHubPageSuppression()
         }
         destination.onDrop = { [weak self] urls in
             self?.hubStore.shelf.add(urls: urls)
@@ -313,17 +328,23 @@ final class StatusBarController: NSObject {
         return result
     }
 
-    private func resizeHubPanel() {
+    private func updateHubPageSuppression() {
+        hubPanel?.suppressesPageNavigation = hubInteractionHeld || hubFileDragging || !trackingMenus.isEmpty
+    }
+
+    private func resizeHubPanel(animated: Bool = false) {
         guard let hubPanel, let button = statusItem.button else { return }
         let height = hubStore.currentHeight
         let size = NSSize(width: 360, height: height)
-        hubPanel.setFrame(NSRect(origin: panelOrigin(relativeTo: button, size: size), size: size), display: true)
+        hubPanel.setCardFrame(NSRect(origin: panelOrigin(relativeTo: button, size: size), size: size), animated: animated)
     }
 
     private func closeHubPanel() {
         guard let hubPanel, hubPanel.isVisible else { return }
         hubPanel.dismissOwnedChildren()
         hubPanel.endInteraction()
+        hubInteractionHeld = false
+        hubFileDragging = false
         hubPanel.orderOut(nil)
         trackingMenus.removeAll()
         onVisibilityChange?(panel.isVisible)
@@ -428,6 +449,7 @@ final class StatusBarController: NSObject {
                       self.hubPanel?.isVisible == true,
                       self.hubPanel?.containsOwnedPoint(NSEvent.mouseLocation) == true else { return }
                 self.trackingMenus.insert(menuID)
+                self.updateHubPageSuppression()
             }
         }
         let end = NotificationCenter.default.addObserver(forName: NSMenu.didEndTrackingNotification, object: nil, queue: .main) { [weak self] note in
@@ -435,6 +457,7 @@ final class StatusBarController: NSObject {
             let menuID = ObjectIdentifier(menu)
             MainActor.assumeIsolated {
                 _ = self?.trackingMenus.remove(menuID)
+                self?.updateHubPageSuppression()
             }
         }
         environmentObservers.append((.default, begin))
