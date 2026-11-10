@@ -53,9 +53,9 @@ final class TerminalMonitorRenderingTests: XCTestCase {
         ] {
             let bitmap = try Self.render(Self.demo(modules: modules, ranks: ranks), name: "switches-\(modules.count)-\(ranks)")
             let text = try Self.recognizedText(bitmap)
-            XCTAssertEqual(text.contains("cpu"), cpuVisible)
-            XCTAssertEqual(text.contains("compileworker"), processVisible)
-            if processVisible { XCTAssertTrue(text.contains("124.6%"), "Per-process CPU may exceed 100%") }
+            XCTAssertEqual(text.contains("cpu"), cpuVisible, "Recognized fixture text: \(text)")
+            XCTAssertEqual(text.contains("compileworker"), processVisible, "Recognized fixture text: \(text)")
+            if processVisible { XCTAssertTrue(text.contains("124.6%"), "Per-process CPU may exceed 100%. Recognized fixture text: \(text)") }
         }
     }
 
@@ -64,8 +64,8 @@ final class TerminalMonitorRenderingTests: XCTestCase {
         for lookup in [true, false] {
             let bitmap = try Self.render(Self.demo(modules: [.network], lookup: lookup), name: "network-lookup-\(lookup)")
             let text = try Self.recognizedText(bitmap)
-            XCTAssertEqual(text.contains("203.0.113.42"), lookup)
-            XCTAssertEqual(text.contains("examplecity"), lookup)
+            XCTAssertEqual(text.contains("203.0.113.42"), lookup, "Recognized fixture text: \(text)")
+            XCTAssertEqual(text.contains("examplecity"), lookup, "Recognized fixture text: \(text)")
         }
     }
 
@@ -137,10 +137,16 @@ final class TerminalMonitorRenderingTests: XCTestCase {
         defer { window.contentView = nil }
         hosting.frame = CGRect(x: 0, y: 0, width: 760, height: 700)
         hosting.layoutSubtreeIfNeeded()
-        let bitmap = try XCTUnwrap(hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds))
+        // Screen-derived bitmap sizes can be 1x on CI and 2x on Retina Macs.
+        // Keep the logical layout unchanged and render enough pixels for OCR
+        // on either machine, rather than relying on its display configuration.
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 1520, pixelsHigh: 1400,
+                                                  bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                                  colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        bitmap.size = hosting.bounds.size
         hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
-        XCTAssertGreaterThanOrEqual(bitmap.pixelsWide, 760)
-        XCTAssertGreaterThanOrEqual(bitmap.pixelsHigh, 700)
+        XCTAssertEqual(bitmap.pixelsWide, 1520)
+        XCTAssertEqual(bitmap.pixelsHigh, 1400)
         XCTAssertEqual(Double(bitmap.pixelsHigh) / Double(bitmap.pixelsWide), 700.0 / 760.0, accuracy: 0.001)
         if let path = ProcessInfo.processInfo.environment["NETSTATS_TERMINAL_RENDER_OUTPUT"] {
             let folder = URL(fileURLWithPath: path, isDirectory: true)
