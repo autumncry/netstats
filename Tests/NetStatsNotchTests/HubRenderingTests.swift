@@ -4,6 +4,28 @@ import XCTest
 @testable import NetStatsCore
 
 final class HubRenderingTests: XCTestCase {
+    @MainActor
+    func testDeviceMetricsFitAboveNavigationWithBottomBreathingRoom() {
+        // Measure the actual text layout, not just the output image dimensions.
+        // Header is 25 + 12 + 7 pt; navigation is 40 + 6 + 6 pt.
+        let viewportHeight = HubFeature.device.cardHeight - 44 - 52
+        for language in AppLanguage.allCases {
+            for load: Double? in [nil, 0.3] {
+                for name in ["MacBook Pro", String(repeating: "Long device name ", count: 8)] {
+                    let content = HubDeviceContent(snapshot: .empty,
+                                                   gpu: GPUReading(name: "Apple GPU", utilization: load),
+                                                   deviceName: name, language: language)
+                        .frame(width: 328).fixedSize(horizontal: false, vertical: true)
+                    let hosting = NSHostingView(rootView: content)
+                    let naturalHeight = hosting.fittingSize.height
+                    XCTAssertGreaterThan(naturalHeight, 0)
+                    XCTAssertLessThanOrEqual(naturalHeight + 8, viewportHeight + 0.01,
+                                             "Device rows and I/O need room above the navigation: \(language), \(String(describing: load)), content=\(naturalHeight), available=\(viewportHeight)")
+                }
+            }
+        }
+    }
+
     func testNetworkHandlesUploadDominantAndUnavailableSamples() async throws {
         try await MainActor.run {
             for language in AppLanguage.allCases {

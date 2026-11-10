@@ -1,0 +1,28 @@
+{
+  "version": "v2.02",
+  "appVersion": "2.0.2",
+  "build": "29",
+  "releaseStatus": "pending pull request",
+  "sourceBranch": "feat/top-edge-navigation",
+  "kind": "native-view-render",
+  "data": "synthetic",
+  "notDesktopScreenshot": true,
+  "assets": [
+    {
+      "file": "terminal-en.png",
+      "width": 1520,
+      "height": 1400,
+      "sha256": "415f3da103cfc3cffc3ad45716cfc0f5011883ba3286f13578fdbccf4053785a"
+    },
+    {
+      "file": "terminal-zh.png",
+      "width": 1520,
+      "height": 1400,
+      "sha256": "f6d6bccb477d7b455dbf8ea07d751105f8caf416b03227821cb49d63085acfc5"
+    }
+  ],
+  "sourceHashes": {
+    "Sources/NetStats/TerminalMonitorView.swift": "85b1735e49aa54dc66a04078c1330543d128b41045ab6407b9e40140bcccf983",
+    "Tests/NetStatsNotchTests/TerminalMonitorRenderingTests.swift": "03faf8fa87595360d776b07dcdf10e595bdc6c7f8684b6370788c93720c71625"
+  }
+}

@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum SettingsSection: String, CaseIterable, Identifiable {
-    case general, features, display, calendar, weather, clipboard, shelf
+    case general, features, display, calendar, weather, clipboard, shelf, about
     var id: String { rawValue }
     func title(_ language: AppLanguage) -> String {
         let chinese = language == .simplifiedChinese
@@ -13,6 +13,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .weather: return chinese ? "天气" : "Weather"
         case .clipboard: return chinese ? "剪切板" : "Clipboard"
         case .shelf: return chinese ? "暂存架" : "Shelf"
+        case .about: return chinese ? "关于" : "About"
         }
     }
     var symbol: String {
@@ -24,6 +25,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .weather: "cloud.sun"
         case .clipboard: "doc.on.clipboard"
         case .shelf: "tray"
+        case .about: "info.circle"
         }
     }
     var feature: HubFeature? {
@@ -43,11 +45,16 @@ struct HubSettingsView: View {
     @ObservedObject var displaySettings: DisplaySettings
     @ObservedObject var metricsStore: MetricsStore
     @State private var selection: SettingsSection? = .general
+    @StateObject private var loginItem = LoginItemController()
 
     var body: some View {
         HubSettingsContent(store: store, settings: store.settings,
                            displaySettings: displaySettings, metricsStore: metricsStore,
-                           selection: $selection)
+                           selection: $selection, loginItem: loginItem)
+            .onAppear { loginItem.refresh() }
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                loginItem.refresh()
+            }
     }
 }
 
@@ -57,6 +64,7 @@ private struct HubSettingsContent: View {
     @ObservedObject var displaySettings: DisplaySettings
     @ObservedObject var metricsStore: MetricsStore
     @Binding var selection: SettingsSection?
+    @ObservedObject var loginItem: LoginItemController
     private var language: AppLanguage { displaySettings.language }
     private var selected: SettingsSection { selection ?? .general }
 
@@ -88,17 +96,28 @@ private struct HubSettingsContent: View {
     @ViewBuilder private var content: some View {
         switch selected {
         case .general:
+            section(tr("启动", "Startup")) {
+                LoginItemSettingsView(controller: loginItem, language: language)
+            }
             section(tr("语言与入口", "Language & entrances")) {
                 Picker(tr("界面语言", "Interface language"), selection: $displaySettings.language) {
                     ForEach(AppLanguage.allCases) { Text($0.displayName).tag($0) }
                 }.pickerStyle(.segmented)
-                Toggle(tr("在实体刘海悬停 1 秒展开卡片", "Open the card after 1 second over the physical notch"), isOn: $displaySettings.notchEnabled)
-                Text(tr("菜单栏点击与刘海悬停共用功能和数据。移出刘海卡片后约 300 毫秒收起；设置窗口会保持打开。", "The menu bar and notch share features and data. The notch card closes about 300 ms after the pointer leaves; this Settings window stays open."))
+                Toggle(tr("启用屏顶卡片", "Enable the top-edge card"), isOn: $displaySettings.notchEnabled)
+                Picker(tr("显示模式", "Display mode"), selection: $displaySettings.topEdgeMode) {
+                    ForEach(TopEdgeMode.allCases) { Text($0.title(language)).tag($0) }
+                }.pickerStyle(.segmented)
+                Text(tr("自动模式优先使用内置实体刘海；没有刘海屏时，在主显示器菜单栏下方显示顶栏入口。也可手动选择顶栏。", "Automatic uses the built-in physical notch when available; otherwise it places a top bar below the main display’s menu bar. You can also choose Top bar manually."))
                     .foregroundStyle(.secondary)
-                if !displaySettings.notchAvailable {
-                    Text(tr("当前未检测到可用的内置刘海屏；保留你的开关设置。", "No built-in notched display is currently available. Your preference is saved."))
+                if let activeMode = displaySettings.activeTopEdgeMode {
+                    Text(tr("当前：", "Current: ") + activeMode.title(language) + " · " + displaySettings.topEdgeScreenName)
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                } else {
+                    Text(tr("当前模式没有可用屏幕，请选择“自动”或“顶栏”。", "No display is available for this mode. Choose Automatic or Top bar."))
                         .foregroundStyle(.secondary)
                 }
+                Text(tr("悬停 1 秒展开，移出约 300 毫秒收起；顶栏也可点击展开。卡片内双指左右滑动切换功能，纵向滑动浏览列表。", "Hover for 1 second to open and move away for 300 ms to close; the top bar also opens on click. Swipe horizontally with two fingers to switch features, or vertically to scroll lists."))
+                    .foregroundStyle(.secondary)
             }
             section(tr("外部查询", "External lookup")) {
                 Toggle(tr("查询公网 IP 与地理位置", "Look up public IP and geolocation"), isOn: $displaySettings.publicIPLookupEnabled)
@@ -163,6 +182,8 @@ private struct HubSettingsContent: View {
         case .shelf:
             featureToggle(.shelf)
             ShelfSettingsView(store: store.shelf, language: language)
+        case .about:
+            AboutView(language: language)
         }
     }
 

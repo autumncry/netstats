@@ -10,7 +10,7 @@ final class NotchPanelController {
     private let hubStore: HubStore
     private let displaySettings: DisplaySettings
     private var interaction = HubHoverLifecycle()
-    private var geometry: NotchGeometry?
+    private var geometry: TopEdgeGeometry?
     private var detailsVisible = false
     private var suspended = false
     private var started = false
@@ -53,9 +53,22 @@ final class NotchPanelController {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.configurationChanged() }
             .store(in: &subscriptions)
+        displaySettings.$topEdgeMode
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.environmentChanged() }
+            .store(in: &subscriptions)
+        displaySettings.$language
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.refreshDropAnchor() }
+            .store(in: &subscriptions)
         hubStore.$selected
             .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.resizeCard() }
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.resizeCard(animated: self.hubStore.pageTransitionDirection != nil)
+            }
             .store(in: &subscriptions)
         hubStore.settings.objectWillChange
             .receive(on: RunLoop.main)
@@ -113,19 +126,18 @@ final class NotchPanelController {
     }
 
     private func refreshGeometry() {
-        geometry = NSScreen.screens.compactMap { screen -> NotchGeometry? in
-            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber,
-                  let left = screen.auxiliaryTopLeftArea,
-                  let right = screen.auxiliaryTopRightArea
-            else { return nil }
-            return NotchGeometry.detect(
-                screenFrame: screen.frame, visibleFrame: screen.visibleFrame,
-                safeAreaTop: screen.safeAreaInsets.top,
-                auxiliaryLeft: left, auxiliaryRight: right,
-                isBuiltIn: CGDisplayIsBuiltin(CGDirectDisplayID(number.uint32Value)) != 0
-            )
-        }.first
-        displaySettings.notchAvailable = geometry != nil
+        let screens = NSScreen.screens.compactMap { screen -> TopEdgeScreen? in
+            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return nil }
+            return TopEdgeScreen(displayID: number.uint32Value, name: screen.localizedName,
+                                 frame: screen.frame, visibleFrame: screen.visibleFrame,
+                                 safeAreaTop: screen.safeAreaInsets.top,
+                                 auxiliaryLeft: screen.auxiliaryTopLeftArea, auxiliaryRight: screen.auxiliaryTopRightArea,
+                                 isBuiltIn: CGDisplayIsBuiltin(number.uint32Value) != 0)
+        }
+        geometry = TopEdgeGeometry.resolve(mode: displaySettings.topEdgeMode, screens: screens, preferredDisplayID: CGMainDisplayID())
+        displaySettings.notchAvailable = TopEdgeGeometry.resolve(mode: .notch, screens: screens, preferredDisplayID: nil) != nil
+        displaySettings.activeTopEdgeMode = geometry?.mode
+        displaySettings.topEdgeScreenName = geometry?.screenName ?? ""
     }
 
     private func configurationChanged() {
@@ -193,6 +205,7 @@ final class NotchPanelController {
 
     private func updatePointer() {
         guard canMonitor, let geometry else { return }
+        panel?.suppressesPageNavigation = held
         let point = NSEvent.mouseLocation
         interaction.update(
             now: ProcessInfo.processInfo.systemUptime,
@@ -244,6 +257,7 @@ final class NotchPanelController {
         let result = HubPanel()
         result.trackPopoverLifecycle()
         result.onKeyboardInteraction = { [weak self] in self?.setUIHeld(true) }
+        result.onNavigatePage = { [weak self] direction in self?.hubStore.selectAdjacent(direction) ?? false }
         let root = HubPanelRootView(
             store: hubStore, displaySettings: displaySettings,
             requestKeyboard: { [weak self] in
@@ -312,12 +326,12 @@ final class NotchPanelController {
         }
     }
 
-    private func resizeCard() {
+    private func resizeCard(animated: Bool = false) {
         guard cardPresented, let geometry, let panel else { return }
         let height = hubStore.currentHeight
         let frame = geometry.cardFrame(height: height, width: 360)
-        panel.setFrame(frame, display: true)
-        let gap = geometry.notchFrame.minY - frame.maxY
+        panel.setCardFrame(frame, animated: animated)
+        let gap = geometry.anchorFrame.minY - frame.maxY
         if gap > 0 {
             if connector == nil {
                 let bridge = HubPanel()
@@ -330,8 +344,8 @@ final class NotchPanelController {
                 bridge.contentView = material
                 connector = bridge
             }
-            connector?.setFrame(NSRect(x: geometry.notchFrame.minX, y: frame.maxY,
-                                      width: geometry.notchFrame.width, height: gap), display: true)
+            connector?.setFrame(NSRect(x: geometry.anchorFrame.minX, y: frame.maxY,
+                                      width: geometry.anchorFrame.width, height: gap), display: true)
             if panel.isVisible { connector?.orderFrontRegardless() }
         } else {
             connector?.orderOut(nil)
@@ -339,7 +353,8 @@ final class NotchPanelController {
     }
 
     private func refreshDropAnchor() {
-        guard acceptsShelfFiles, let geometry else {
+        guard canMonitor, !detailsVisible, let geometry,
+              geometry.mode == .topBar || acceptsShelfFiles else {
             anchorDestination?.cancel()
             dropAnchor?.orderOut(nil)
             return
@@ -347,16 +362,29 @@ final class NotchPanelController {
         if dropAnchor == nil {
             let anchor = HubPanel()
             anchor.hasShadow = false
-            // This almost transparent paint remains inside the already black
-            // camera housing; the actual window alpha stays 1 for drag delivery.
-            anchor.backgroundColor = NSColor.black.withAlphaComponent(0.01)
             anchor.ignoresMouseEvents = false
             let destination = makeDestination(isAnchor: true)
             anchor.contentView = destination
             dropAnchor = anchor
             anchorDestination = destination
         }
-        dropAnchor?.setFrame(geometry.notchFrame, display: true)
+        if let destination = anchorDestination {
+            let isTopBar = geometry.mode == .topBar
+            destination.setTopBarAppearance(isTopBar, language: displaySettings.language)
+            destination.onClick = isTopBar ? { [weak self] in
+                guard let self, self.canMonitor, !self.detailsVisible else { return }
+                if self.cardPresented { self.dismiss() }
+                else {
+                    self.interaction.expandForFileDrag()
+                    self.showCard()
+                    self.updatePointer()
+                }
+            } : nil
+        }
+        // Keep the real drop target inside the camera housing, or in the
+        // visible top-bar strip below the menu bar on displays without a notch.
+        dropAnchor?.backgroundColor = geometry.mode == .topBar ? .clear : NSColor.black.withAlphaComponent(0.01)
+        dropAnchor?.setFrame(geometry.anchorFrame, display: true)
         dropAnchor?.orderFrontRegardless()
     }
 

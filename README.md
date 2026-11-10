@@ -33,6 +33,8 @@
 
 ## 安装
 
+源码分支已准备 **v2.02（待发布）**：新增双指切页与动画、自动顶栏适配、登录自启和关于页，并重设计 Terminal 详情。[查看更新与预览](docs/release-notes/v2.02.md)。下方下载仍为已发布的 v2.01。
+
 **[下载 NetStats-2.0.1.dmg](https://github.com/autumncry/netstats/releases/download/v2.01/NetStats-2.0.1.dmg)** · macOS 14+ · Apple Silicon / Intel
 
 升级前请先退出旧版 NetStats；替换应用会保留原有设置和本机历史。

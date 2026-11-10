@@ -37,7 +37,7 @@ final class SettingsWindowTests: XCTestCase {
     }
 
     func testSettingsSectionsCoverBothHubAndExistingDisplayControls() {
-        XCTAssertEqual(SettingsSection.allCases, [.general, .features, .display, .calendar, .weather, .clipboard, .shelf])
+        XCTAssertEqual(SettingsSection.allCases.map(\.rawValue), ["general", "features", "display", "calendar", "weather", "clipboard", "shelf", "about"])
         XCTAssertEqual(SettingsSection.display.title(.simplifiedChinese), "显示与监控")
         XCTAssertEqual(SettingsSection.clipboard.title(.english), "Clipboard")
     }

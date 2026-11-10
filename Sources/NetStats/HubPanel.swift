@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import SwiftUI
+import QuartzCore
 
 /// Passive controls remain nonactivating. Only an explicit input interaction
 /// grants key-window status, and the panel can never become the main window.
@@ -8,6 +9,11 @@ import SwiftUI
 final class HubPanel: NSPanel {
     var allowsKeyboardFocus = false
     var onKeyboardInteraction: (() -> Void)?
+    var onNavigatePage: ((HubPageDirection) -> Bool)?
+    var suppressesPageNavigation = false {
+        didSet { if suppressesPageNavigation { pageSwipe.reset() } }
+    }
+    private var pageSwipe = HubPageSwipe()
     private var popoverObserver: NSObjectProtocol?
     private let popovers = NSHashTable<NSPopover>.weakObjects()
     override var canBecomeKey: Bool { allowsKeyboardFocus }
@@ -31,6 +37,20 @@ final class HubPanel: NSPanel {
         makeKey()
     }
 
+    /// Only user page changes animate. Opening, screen changes and layout
+    /// refreshes use the immediate path, with no delayed resize tasks.
+    func setCardFrame(_ frame: NSRect, animated: Bool) {
+        let shouldAnimate = animated && isVisible && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        // Retarget the same animatable property even for immediate updates.
+        // Calling setFrame directly does not cancel an in-flight animator,
+        // and a quick reversal may still equal the first animation's start.
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = shouldAnimate ? HubPageMotion.duration : 0
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            animator().setFrame(frame, display: true)
+        }
+    }
+
     func trackPopoverLifecycle() {
         guard popoverObserver == nil else { return }
         popoverObserver = NotificationCenter.default.addObserver(forName: NSPopover.didShowNotification, object: nil, queue: .main) { [weak self] note in
@@ -50,6 +70,17 @@ final class HubPanel: NSPanel {
     }
 
     override func sendEvent(_ event: NSEvent) {
+        if event.type == .scrollWheel, let onNavigatePage {
+            let decision = pageSwipe.update(
+                x: event.scrollingDeltaX, y: event.scrollingDeltaY,
+                phase: pagePhase(event.phase), precise: event.hasPreciseScrollingDeltas,
+                momentum: !event.momentumPhase.isEmpty,
+                suppressed: suppressesPageNavigation || NSEvent.pressedMouseButtons != 0
+                    || firstResponder is NSTextView || !ownedChildren.isEmpty
+            )
+            if let direction = decision.direction { _ = onNavigatePage(direction) }
+            if decision.consumed { return }
+        }
         // Grant key status before AppKit dispatches the first field click.
         // A SwiftUI tap callback alone can arrive after the field has already
         // declined that initial focus attempt in a passive panel.
@@ -68,7 +99,17 @@ final class HubPanel: NSPanel {
         super.sendEvent(event)
     }
 
+    private func pagePhase(_ phase: NSEvent.Phase) -> HubPageSwipe.Phase {
+        if phase.contains(.cancelled) { return .cancelled }
+        if phase.contains(.ended) { return .ended }
+        if phase.contains(.began) { return .began }
+        if phase.contains(.changed) || phase.contains(.stationary) { return .changed }
+        return .none
+    }
+
     func endInteraction() {
+        pageSwipe.reset()
+        suppressesPageNavigation = false
         makeFirstResponder(nil)
         allowsKeyboardFocus = false
         if isKeyWindow { resignKey() }
