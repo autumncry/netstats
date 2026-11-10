@@ -25,6 +25,18 @@ enum TerminalFormatting {
         guard value.isFinite, value >= 0, value < Double(UInt64.max) else { return "—" }
         return ByteFormatter.speed(value)
     }
+
+    static func processValue(_ item: ProcessMetricSample, style: TerminalProcessValueStyle) -> String {
+        switch style {
+        case .percent:
+            // A process can use more than one CPU core: preserve >100% values.
+            return item.value.isFinite ? String(format: "%.1f%%", item.value) : "—"
+        case .memory:
+            let bytes = item.auxiliaryBytes.map(ByteFormatter.memory) ?? "—"
+            return bytes + (item.value.isFinite ? " · " + String(format: "%.1f%%", item.value) : "")
+        case .speed: return speed(item.value)
+        }
+    }
 }
 
 struct TerminalMonitorView: View {
@@ -46,17 +58,28 @@ struct TerminalMonitorView: View {
     let settingsAction: () -> Void
     let copyIPAddressAction: () -> Void
 
+    var presentation: TerminalPresentation {
+        TerminalPresentation(modules: modules, showProcessRanks: showProcessRanks, processes: processes,
+                             publicLocation: publicLocation, lookupEnabled: lookupEnabled,
+                             isLoadingLocation: isLoadingLocation, locationError: locationError,
+                             language: language)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
             rule.padding(.top, 14).padding(.bottom, 15)
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(alignment: .leading, spacing: 19) {
-                    if modules.contains(.hardware) { systemSection }
-                    if modules.contains(.disk) { diskSection }
-                    if modules.contains(.network) { networkSection }
-                    if modules.contains(.clash) { proxySection }
-                    if modules.isEmpty { emptyState }
+                    ForEach(presentation.visibleModules) { module in
+                        switch module {
+                        case .hardware: systemSection
+                        case .disk: diskSection
+                        case .network: networkSection
+                        case .clash: proxySection
+                        }
+                    }
+                    if presentation.visibleModules.isEmpty { emptyState }
                 }
                 .padding(.trailing, 8)
                 .padding(.bottom, 10)
@@ -102,7 +125,7 @@ struct TerminalMonitorView: View {
             Image(systemName: "desktopcomputer").accessibilityHidden(true)
             Text(tr("本机采样", "Local sampling"))
             Spacer()
-            Text(tr("\(modules.count) 个监控模块", "\(modules.count) monitoring modules"))
+            Text(tr("\(presentation.visibleModules.count) 个监控模块", "\(presentation.visibleModules.count) monitoring modules"))
             Text("·")
             Text(tr("状态只读", "Read-only status"))
         }.font(.system(size: 10, design: .monospaced)).foregroundStyle(TerminalTheme.secondary)
@@ -119,7 +142,7 @@ struct TerminalMonitorView: View {
                         historyLine("CPU", values: history.samples.map(\.cpuUsage), scale: 1)
                     }
                     valueLine("GPU", value: gpuName)
-                    if showProcessRanks, processes.gpu.items.isEmpty, processes.gpu.note != nil {
+                    if let category = presentation.processCategory(.gpu), category.items.isEmpty, category.note != nil {
                         note(tr("GPU 进程数据不可用", "GPU process data unavailable"))
                     }
                 }.frame(maxWidth: .infinity, alignment: .leading)
@@ -135,15 +158,15 @@ struct TerminalMonitorView: View {
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }
             valueLine(tr("电源", "Power"), value: powerDescription)
-            if showProcessRanks {
+            if let cpu = presentation.processCategory(.cpu), let memory = presentation.processCategory(.memory) {
                 HStack(alignment: .top, spacing: 26) {
-                    TerminalProcessList(title: tr("CPU 进程排行", "CPU processes"), category: processes.cpu,
+                    TerminalProcessList(title: tr("CPU 进程排行", "CPU processes"), category: cpu,
                                         style: .percent, language: language)
-                    TerminalProcessList(title: tr("内存进程排行", "Memory processes"), category: processes.memory,
+                    TerminalProcessList(title: tr("内存进程排行", "Memory processes"), category: memory,
                                         style: .memory, language: language)
                 }.padding(.top, 2)
-                if !processes.gpu.items.isEmpty {
-                    TerminalProcessList(title: tr("GPU 进程排行", "GPU processes"), category: processes.gpu,
+                if let gpu = presentation.processCategory(.gpu), !gpu.items.isEmpty {
+                    TerminalProcessList(title: tr("GPU 进程排行", "GPU processes"), category: gpu,
                                         style: .percent, language: language)
                 }
             }
@@ -170,11 +193,11 @@ struct TerminalMonitorView: View {
                                     scale: nil, tint: TerminalTheme.accent).frame(maxWidth: 170).frame(height: 17)
                 }
             }
-            if showProcessRanks {
-                if processes.disk.items.isEmpty {
-                    if processes.disk.note != nil { note(tr("逐进程磁盘 I/O 需要特权追踪", "Per-process disk I/O requires privileged tracing")) }
+            if let category = presentation.processCategory(.disk) {
+                if category.items.isEmpty {
+                    if category.note != nil { note(tr("逐进程磁盘 I/O 需要特权追踪", "Per-process disk I/O requires privileged tracing")) }
                 } else {
-                    TerminalProcessList(title: tr("磁盘进程排行", "Disk processes"), category: processes.disk,
+                    TerminalProcessList(title: tr("磁盘进程排行", "Disk processes"), category: category,
                                         style: .speed, language: language)
                 }
             }
@@ -192,21 +215,21 @@ struct TerminalMonitorView: View {
             }
             HStack(spacing: 10) {
                 Text(tr("公网 IP", "Public IP")).foregroundStyle(TerminalTheme.secondary).frame(width: 88, alignment: .leading)
-                Text(ipText).fontWeight(.medium).textSelection(.enabled).lineLimit(1).truncationMode(.middle)
+                Text(presentation.network.ipText).fontWeight(.medium).textSelection(.enabled).lineLimit(1).truncationMode(.middle)
                 Spacer(minLength: 0)
                 Button(action: copyIPAddressAction) {
                     Label(copiedIPAddress ? tr("已复制", "Copied") : tr("复制 IP", "Copy IP"),
                           systemImage: copiedIPAddress ? "checkmark" : "doc.on.doc")
                 }.buttonStyle(.bordered).controlSize(.mini)
-                    .disabled(publicLocation == nil || !lookupEnabled)
+                    .disabled(!presentation.network.canCopy)
                     .help(tr("复制公网 IP", "Copy public IP"))
             }
-            valueLine(tr("位置", "Location"), value: locationText)
-            if showProcessRanks {
-                if processes.network.items.isEmpty {
-                    if processes.network.note != nil { note(tr("逐进程网速暂不可用", "Per-process network rates unavailable")) }
+            valueLine(tr("位置", "Location"), value: presentation.network.locationText)
+            if let category = presentation.processCategory(.network) {
+                if category.items.isEmpty {
+                    if category.note != nil { note(tr("逐进程网速暂不可用", "Per-process network rates unavailable")) }
                 } else {
-                    TerminalProcessList(title: tr("网络进程排行", "Network processes"), category: processes.network,
+                    TerminalProcessList(title: tr("网络进程排行", "Network processes"), category: category,
                                         style: .speed, language: language)
                 }
             }
@@ -299,17 +322,6 @@ struct TerminalMonitorView: View {
     private var memoryTotal: String { "\(ByteFormatter.memory(snapshot.memory.usedBytes)) / \(ByteFormatter.memory(snapshot.memory.totalBytes))" }
     private var diskTotal: String { snapshot.disk.totalBytes > 0 ? "\(ByteFormatter.memory(snapshot.disk.usedBytes)) / \(ByteFormatter.memory(snapshot.disk.totalBytes))" : tr("容量不可用", "Capacity unavailable") }
     private var networkHistoryPeak: Double { max(1, history.samples.flatMap { [$0.networkDownloadBytesPerSecond, $0.networkUploadBytesPerSecond] }.filter(\.isFinite).max() ?? 1) }
-    private var ipText: String {
-        guard lookupEnabled else { return tr("查询已关闭", "Lookup disabled") }
-        if let publicLocation { return publicLocation.ipAddress }
-        return isLoadingLocation ? tr("查询中…", "Looking up…") : tr("不可用", "Unavailable")
-    }
-    private var locationText: String {
-        guard lookupEnabled else { return tr("本地模式 · 不发起公网查询", "Local mode · no public-IP request") }
-        if let publicLocation, !publicLocation.displayLocation.isEmpty { return publicLocation.displayLocation }
-        if isLoadingLocation { return tr("查询中…", "Looking up…") }
-        return locationError ?? tr("暂无位置信息", "Location unavailable")
-    }
     private var powerDescription: String {
         let source: String
         switch snapshot.power.source {
@@ -379,10 +391,9 @@ private struct TerminalHistory: View {
 }
 
 private struct TerminalProcessList: View {
-    enum ValueStyle { case percent, memory, speed }
     let title: String
     let category: ProcessCategorySnapshot
-    let style: ValueStyle
+    let style: TerminalProcessValueStyle
     let language: AppLanguage
 
     var body: some View {
@@ -397,22 +408,11 @@ private struct TerminalProcessList: View {
                         Text(String(index + 1)).foregroundStyle(TerminalTheme.secondary).frame(width: 12, alignment: .leading)
                         Text(item.name).lineLimit(1).truncationMode(.middle).help(item.name)
                         Spacer(minLength: 0)
-                        Text(value(item)).lineLimit(1).textSelection(.enabled)
+                        Text(TerminalFormatting.processValue(item, style: style)).lineLimit(1).textSelection(.enabled)
                     }
                 }
             }
         }.font(.system(size: 11, design: .monospaced)).frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func value(_ item: ProcessMetricSample) -> String {
-        switch style {
-        case .percent:
-            // A process can use more than one CPU core: preserve >100% values.
-            return item.value.isFinite ? String(format: "%.1f%%", item.value) : "—"
-        case .memory:
-            let bytes = item.auxiliaryBytes.map(ByteFormatter.memory) ?? "—"
-            return bytes + (item.value.isFinite ? " · " + String(format: "%.1f%%", item.value) : "")
-        case .speed: return TerminalFormatting.speed(item.value)
-        }
-    }
 }

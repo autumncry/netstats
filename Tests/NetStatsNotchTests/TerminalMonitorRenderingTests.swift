@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import Vision
 import XCTest
 @testable import NetStatsCore
 
@@ -45,36 +44,47 @@ final class TerminalMonitorRenderingTests: XCTestCase {
     }
 
     @MainActor
-    func testModuleAndProcessSwitchesControlVisibleContent() throws {
+    func testModuleAndProcessSwitchesControlPresentedContent() throws {
         for (modules, ranks, cpuVisible, processVisible) in [
             (Set([MonitorModule.hardware]), true, true, true),
             (Set([MonitorModule.hardware]), false, true, false),
             (Set<MonitorModule>(), true, false, false)
         ] {
-            let bitmap = try Self.render(Self.demo(modules: modules, ranks: ranks), name: "switches-\(modules.count)-\(ranks)")
-            let text = try Self.recognizedText(bitmap)
-            XCTAssertEqual(text.contains("cpu"), cpuVisible, "Recognized fixture text: \(text)")
-            XCTAssertEqual(text.contains("compileworker"), processVisible, "Recognized fixture text: \(text)")
-            if processVisible { XCTAssertTrue(text.contains("124.6%"), "Per-process CPU may exceed 100%. Recognized fixture text: \(text)") }
+            let view = Self.demo(modules: modules, ranks: ranks)
+            try Self.renderDemo(view, name: "switches-\(modules.count)-\(ranks)")
+            let presentation = view.presentation
+            XCTAssertEqual(presentation.visibleModules.contains(.hardware), cpuVisible)
+            let rows = presentation.processCategory(.cpu)?.items ?? []
+            XCTAssertEqual(rows.contains { $0.name == "CompileWorker" }, processVisible)
+            XCTAssertNil(presentation.processCategory(.network), "A disabled module must not expose its process category")
+            if processVisible {
+                let row = try XCTUnwrap(rows.first)
+                XCTAssertEqual(TerminalFormatting.processValue(row, style: .percent), "124.6%",
+                               "The UI formatter must preserve multi-core process usage above 100%")
+            }
+
         }
     }
 
     @MainActor
-    func testDisabledIPLookupNeverRendersCachedPublicAddressOrLocation() throws {
+    func testDisabledIPLookupNeverPresentsCachedPublicAddressOrLocation() throws {
         for lookup in [true, false] {
-            let bitmap = try Self.render(Self.demo(modules: [.network], lookup: lookup), name: "network-lookup-\(lookup)")
-            let text = try Self.recognizedText(bitmap)
-            XCTAssertEqual(text.contains("203.0.113.42"), lookup, "Recognized fixture text: \(text)")
-            XCTAssertEqual(text.contains("examplecity"), lookup, "Recognized fixture text: \(text)")
+            let view = Self.demo(modules: [.network], lookup: lookup)
+            try Self.renderDemo(view, name: "network-lookup-\(lookup)")
+            let identity = view.presentation.network
+            XCTAssertEqual(identity.ipText.contains("203.0.113.42"), lookup)
+            XCTAssertEqual(identity.locationText.contains("ExampleCity"), lookup)
+            XCTAssertEqual(identity.canCopy, lookup)
+
         }
     }
 
     @MainActor
     func testSyntheticPopulatedAndErrorStatesRenderInBothLanguages() throws {
         for language in AppLanguage.allCases {
-            try Self.render(Self.demo(language: language), name: "demo-\(language.rawValue)")
-            try Self.render(Self.demo(language: language, loading: true, hasLocation: false), name: "loading-\(language.rawValue)")
-            try Self.render(Self.demo(language: language, hasLocation: false, error: "Connection unavailable · retry at next refresh"),
+            try Self.renderDemo(Self.demo(language: language), name: "demo-\(language.rawValue)")
+            try Self.renderDemo(Self.demo(language: language, loading: true, hasLocation: false), name: "loading-\(language.rawValue)")
+            try Self.renderDemo(Self.demo(language: language, hasLocation: false, error: "Connection unavailable · retry at next refresh"),
                             name: "error-\(language.rawValue)")
         }
         XCTAssertEqual(TerminalFormatting.percent(.nan), "—")
@@ -85,7 +95,7 @@ final class TerminalMonitorRenderingTests: XCTestCase {
     @MainActor private static func demo(language: AppLanguage = .english,
                                         modules: Set<MonitorModule> = Set(MonitorModule.allCases),
                                         ranks: Bool = true, lookup: Bool = true,
-                                        loading: Bool = false, hasLocation: Bool = true, error: String? = nil) -> some View {
+                                        loading: Bool = false, hasLocation: Bool = true, error: String? = nil) -> TerminalMonitorView {
         let gb: UInt64 = 1_073_741_824
         let processes = ProcessSnapshot(
             cpu: ProcessCategorySnapshot(items: [ProcessMetricSample(pid: 101, name: "CompileWorker", value: 124.6, auxiliaryBytes: nil),
@@ -108,23 +118,11 @@ final class TerminalMonitorRenderingTests: XCTestCase {
                                    publicLocation: hasLocation ? PublicIPLocation(ipAddress: "203.0.113.42", city: "ExampleCity", region: nil, country: nil, coordinates: nil) : nil,
                                    isLoadingLocation: loading, locationError: error, clashStatus: clash,
                                    lookupEnabled: lookup, copiedIPAddress: false, settingsAction: {}, copyIPAddressAction: {})
-            .padding(18).frame(width: 760, height: 700).background(TerminalTheme.background)
     }
 
-    private static func recognizedText(_ bitmap: NSBitmapImageRep) throws -> String {
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .fast
-        request.recognitionLanguages = ["en-US"]
-        request.usesLanguageCorrection = false
-        // Read rendered ASCII values without depending on a GPU/ANE OCR model.
-        for (stage, devices) in try request.supportedComputeStageDevices {
-            if let cpu = devices.first(where: { if case .cpu = $0 { return true }; return false }) {
-                request.setComputeDevice(cpu, for: stage)
-            }
-        }
-        try VNImageRequestHandler(cgImage: XCTUnwrap(bitmap.cgImage), options: [:]).perform([request])
-        return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
-            .lowercased().replacingOccurrences(of: " ", with: "")
+    @discardableResult
+    @MainActor private static func renderDemo(_ view: TerminalMonitorView, name: String) throws -> NSBitmapImageRep {
+        try render(view.padding(18).frame(width: 760, height: 700).background(TerminalTheme.background), name: name)
     }
 
     @discardableResult
@@ -138,8 +136,8 @@ final class TerminalMonitorRenderingTests: XCTestCase {
         hosting.frame = CGRect(x: 0, y: 0, width: 760, height: 700)
         hosting.layoutSubtreeIfNeeded()
         // Screen-derived bitmap sizes can be 1x on CI and 2x on Retina Macs.
-        // Keep the logical layout unchanged and render enough pixels for OCR
-        // on either machine, rather than relying on its display configuration.
+        // Keep visual regression artifacts at a consistent resolution without
+        // changing the logical layout or relying on display configuration.
         let bitmap = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 1520, pixelsHigh: 1400,
                                                   bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
                                                   colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
