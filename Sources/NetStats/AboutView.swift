@@ -27,11 +27,11 @@ struct AboutView: View {
                     Text(tr("有新版本：", "Update available: ") + version)
                 }
                 Toggle(tr("自动检查更新", "Automatically check for updates"),
-                       isOn: Binding(get: { updates.automaticChecks }, set: updates.setAutomaticChecks))
+                       isOn: Binding(get: { updates.automaticChecks }, set: { enabled in updates.setAutomaticChecks(enabled) }))
                     .disabled(updates.startupError != nil)
                 Toggle(tr("自动下载更新，并在退出时安装", "Download updates automatically and install on quit"),
                        isOn: Binding(get: { updates.automaticChecks && updates.automaticDownloads },
-                                     set: updates.setAutomaticDownloads))
+                                     set: { enabled in updates.setAutomaticDownloads(enabled) }))
                     .disabled(!updates.automaticChecks || updates.startupError != nil)
                 if let error = updates.startupError {
                     Text(error).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
