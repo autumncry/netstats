@@ -105,6 +105,7 @@ struct CalendarFeatureView: View {
 struct CalendarSettingsView: View {
     @ObservedObject var store: CalendarStore
     let language: AppLanguage
+    let requestAccess: () async -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -128,7 +129,7 @@ struct CalendarSettingsView: View {
                 }
             } else if store.authorization == .notDetermined || store.authorization == .writeOnly {
                 Button(calendarText("授权读取系统日历", "Grant Calendar access", language)) {
-                    Task { await store.requestAccess() }
+                    Task { await requestAccess() }
                 }.disabled(store.isRequesting).controlSize(.small)
                 if store.isRequesting { ProgressView().controlSize(.mini) }
             } else {

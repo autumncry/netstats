@@ -44,13 +44,15 @@ struct HubSettingsView: View {
     @ObservedObject var store: HubStore
     @ObservedObject var displaySettings: DisplaySettings
     @ObservedObject var metricsStore: MetricsStore
+    var requestCalendarAccess: (() async -> Void)?
     @State private var selection: SettingsSection? = .general
     @StateObject private var loginItem = LoginItemController()
 
     var body: some View {
         HubSettingsContent(store: store, settings: store.settings,
                            displaySettings: displaySettings, metricsStore: metricsStore,
-                           selection: $selection, loginItem: loginItem)
+                           selection: $selection, loginItem: loginItem,
+                           requestCalendarAccess: requestCalendarAccess ?? { await store.calendar.requestAccess() })
             .onAppear { loginItem.refresh() }
             .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
                 loginItem.refresh()
@@ -65,6 +67,7 @@ private struct HubSettingsContent: View {
     @ObservedObject var metricsStore: MetricsStore
     @Binding var selection: SettingsSection?
     @ObservedObject var loginItem: LoginItemController
+    let requestCalendarAccess: () async -> Void
     private var language: AppLanguage { displaySettings.language }
     private var selected: SettingsSection { selection ?? .general }
 
@@ -174,7 +177,7 @@ private struct HubSettingsContent: View {
             }
         case .calendar:
             featureToggle(.calendar)
-            CalendarSettingsView(store: store.calendar, language: language)
+            CalendarSettingsView(store: store.calendar, language: language, requestAccess: requestCalendarAccess)
         case .weather:
             featureToggle(.weather)
             WeatherSettingsView(store: store.weather, language: language)
