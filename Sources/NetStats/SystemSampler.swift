@@ -86,6 +86,15 @@ final class SystemSampler {
         return (UInt64(UInt32.max) - previousValue) + currentValue + 1
     }
 
+    static func readSwap(using query: (inout xsw_usage, inout size_t) -> Int32 = { usage, size in
+        sysctlbyname("vm.swapusage", &usage, &size, nil, 0)
+    }) -> SwapUsage? {
+        var usage = xsw_usage()
+        var size = MemoryLayout<xsw_usage>.size
+        guard query(&usage, &size) == 0, size == MemoryLayout<xsw_usage>.size else { return nil }
+        return SwapUsage(usedBytes: usage.xsu_used, totalBytes: usage.xsu_total)
+    }
+
     private func readMemory() -> MemorySnapshot {
         var pageSize = vm_size_t(0)
         host_page_size(mach_host_self(), &pageSize)
@@ -102,6 +111,7 @@ final class SystemSampler {
         }
 
         let total = ProcessInfo.processInfo.physicalMemory
+        let swap = Self.readSwap()
         guard result == KERN_SUCCESS, pageSize > 0 else {
             return MemorySnapshot(
                 usedBytes: 0,
@@ -110,7 +120,8 @@ final class SystemSampler {
                 cachedBytes: 0,
                 wiredBytes: 0,
                 compressedBytes: 0,
-                pressure: 0
+                pressure: 0,
+                swap: swap
             )
         }
 
@@ -134,7 +145,8 @@ final class SystemSampler {
             cachedBytes: min(cachedBytes, total),
             wiredBytes: wiredBytes,
             compressedBytes: compressedBytes,
-            pressure: min(max(pressure, 0), 1)
+            pressure: min(max(pressure, 0), 1),
+            swap: swap
         )
     }
 

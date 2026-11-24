@@ -159,7 +159,8 @@ final class TerminalMonitorRenderingTests: XCTestCase {
         let gb: UInt64 = 1_073_741_824
         return SystemSnapshot(timestamp: Date(timeIntervalSince1970: 1_794_304_800), cpuUsage: cpu,
                               memory: MemorySnapshot(usedBytes: 17 * gb, totalBytes: 24 * gb, availableBytes: 7 * gb,
-                                                     cachedBytes: 3 * gb, wiredBytes: 4 * gb, compressedBytes: gb, pressure: 0.43),
+                                                     cachedBytes: 3 * gb, wiredBytes: 4 * gb, compressedBytes: gb, pressure: 0.43,
+                                                     swap: SwapUsage(usedBytes: 2 * gb, totalBytes: 4 * gb)),
                               disk: DiskSnapshot(usedBytes: 347 * gb, totalBytes: 512 * gb, freeBytes: 165 * gb,
                                                  readBytesPerSecond: 2_100_000, writeBytesPerSecond: 614_000),
                               network: NetworkSnapshot(downloadBytesPerSecond: download, uploadBytesPerSecond: 819_000,

@@ -178,6 +178,13 @@ struct MonitorPopoverView: View {
         )
 
         CompactValueRow(
+            title: text(.swap),
+            systemImage: "arrow.left.arrow.right",
+            value: ByteFormatter.swap(snapshot.memory.swap)
+        )
+        .help(text(.swapHelp))
+
+        CompactValueRow(
             title: text(.power),
             systemImage: "bolt",
             value: powerText(snapshot.power)
@@ -797,18 +804,29 @@ private struct CompactStatusLine: View {
     }
 }
 
+private struct NativeMetricLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 7) {
+            configuration.icon.frame(width: 18, alignment: .center)
+            configuration.title
+        }
+    }
+}
+
 private struct SectionHeader: View {
     let title: String
     let systemImage: String
 
     var body: some View {
         HStack(spacing: 7) {
-            Image(systemName: systemImage)
-                .font(.system(size: 12, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
+            Label {
+                Text(title).font(.caption.weight(.semibold)).textCase(.uppercase)
+            } icon: {
+                Image(systemName: systemImage)
+                    .font(.system(size: 12, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+            }
+            .labelStyle(NativeMetricLabelStyle())
             Spacer()
         }
         .foregroundStyle(.secondary)
@@ -844,6 +862,7 @@ private struct MetricGauge<Accessory: View>: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Label(title, systemImage: systemImage)
+                    .labelStyle(NativeMetricLabelStyle())
                     .font(.subheadline.weight(.semibold))
                 accessory()
                 Spacer()
@@ -879,7 +898,7 @@ private extension MetricGauge where Accessory == EmptyView {
     }
 }
 
-private struct CompactValueRow: View {
+struct CompactValueRow: View {
     let title: String
     let systemImage: String
     let value: String
@@ -887,6 +906,7 @@ private struct CompactValueRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Label(title, systemImage: systemImage)
+                .labelStyle(NativeMetricLabelStyle())
             Spacer(minLength: 8)
             Text(value)
                 .monospacedDigit()

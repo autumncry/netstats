@@ -153,6 +153,8 @@ struct TerminalMonitorView: View {
                         historyLine(tr("压力", "Pressure"), values: history.samples.map(\.memoryPressure), scale: 1)
                     }
                     valueLine(tr("内存压力", "Memory pressure"), value: TerminalFormatting.percent(snapshot.memory.pressure))
+                    valueLine(LocalizedCopy.text(.swap, language: language), value: ByteFormatter.swap(snapshot.memory.swap))
+                        .help(LocalizedCopy.text(.swapHelp, language: language))
                     note(tr("缓存 ", "Cached ") + ByteFormatter.memory(snapshot.memory.cachedBytes)
                          + tr(" · 压缩 ", " · Compressed ") + ByteFormatter.memory(snapshot.memory.compressedBytes))
                 }.frame(maxWidth: .infinity, alignment: .leading)

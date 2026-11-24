@@ -393,6 +393,8 @@ enum LocalizedCopy {
         case loading
         case location
         case memoryLoad
+        case swap
+        case swapHelp
         case metric
         case mixedPortUnavailable
         case network
@@ -463,6 +465,8 @@ enum LocalizedCopy {
         .language: "Language",
         .loading: "Loading...",
         .location: "Location",
+        .swap: "Swap",
+        .swapHelp: "Used / currently allocated swap space",
         .memoryLoad: "Memory Load",
         .metric: "Metric",
         .mixedPortUnavailable: "Mixed port unavailable",
@@ -534,6 +538,8 @@ enum LocalizedCopy {
         .language: "语言",
         .loading: "加载中...",
         .location: "地理位置",
+        .swap: "交换空间（Swap）",
+        .swapHelp: "已用交换空间 / 系统当前分配的交换空间",
         .memoryLoad: "内存负载",
         .metric: "指标",
         .mixedPortUnavailable: "混合端口不可用",
