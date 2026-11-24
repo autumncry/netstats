@@ -1,7 +1,7 @@
 {
   "version": "v2.02",
   "appVersion": "2.0.2",
-  "build": "29",
+  "build": "31",
   "releaseStatus": "pending pull request",
   "sourceBranch": "feat/top-edge-navigation",
   "kind": "native-view-render",
@@ -12,17 +12,17 @@
       "file": "terminal-en.png",
       "width": 1520,
       "height": 1400,
-      "sha256": "415f3da103cfc3cffc3ad45716cfc0f5011883ba3286f13578fdbccf4053785a"
+      "sha256": "0c5414b3a82d5d31e7c599b31c56ba07510ee64cf4d7f68b2aa747d0c7edbb39"
     },
     {
       "file": "terminal-zh.png",
       "width": 1520,
       "height": 1400,
-      "sha256": "f6d6bccb477d7b455dbf8ea07d751105f8caf416b03227821cb49d63085acfc5"
+      "sha256": "4c2df5e6f7233c7312e4eb87f9ff4de278b4cb7cc704199191aefa941fa348cc"
     }
   ],
   "sourceHashes": {
-    "Sources/NetStats/TerminalMonitorView.swift": "85b1735e49aa54dc66a04078c1330543d128b41045ab6407b9e40140bcccf983",
-    "Tests/NetStatsNotchTests/TerminalMonitorRenderingTests.swift": "03faf8fa87595360d776b07dcdf10e595bdc6c7f8684b6370788c93720c71625"
+    "Sources/NetStats/TerminalMonitorView.swift": "ef3186be5bf8c6ca868de5f74fed5ce3cd52ce3cf90a320c1ec4fdbdeb9e006e",
+    "Tests/NetStatsNotchTests/TerminalMonitorRenderingTests.swift": "41e9c137aa3d3295bd3b2b1bd3991ccf725238d9b3574e031b2c79ccda0e9a54"
   }
 }
