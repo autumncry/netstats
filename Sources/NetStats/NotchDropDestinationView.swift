@@ -46,6 +46,12 @@ final class NotchDropDestinationView: NSView {
         }
     }
 
+    // Only the collapsed grip is visual. Keep the destination window alive
+    // during expansion so AppKit can finish an in-progress file drag.
+    func setCardExpanded(_ expanded: Bool) {
+        topBarMaterial?.isHidden = expanded
+    }
+
     override func mouseDown(with event: NSEvent) {
         if let onClick { onClick() }
         else { super.mouseDown(with: event) }

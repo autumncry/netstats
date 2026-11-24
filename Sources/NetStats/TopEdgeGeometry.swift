@@ -66,6 +66,14 @@ struct TopEdgeGeometry {
             && point.y >= triggerFrame.minY && point.y <= triggerFrame.maxY
     }
 
+    /// Some displays reserve a few menu-bar points below the camera housing.
+    /// The pointer can cross that gap without drawing an extra material window.
+    func containsPathToCard(_ point: CGPoint, card: CGRect) -> Bool {
+        card.maxY < anchorFrame.minY
+            && point.y >= card.maxY && point.y <= anchorFrame.minY
+            && point.x >= max(card.minX, anchorFrame.minX) && point.x <= min(card.maxX, anchorFrame.maxX)
+    }
+
     func cardFrame(height: CGFloat, width: CGFloat = 360) -> CGRect {
         if let physicalNotch { return physicalNotch.cardFrame(height: height, width: width) }
         let cardWidth = min(width.isFinite ? max(0, width) : 360, visibleFrame.width - 16)

@@ -77,6 +77,14 @@ final class HubRenderingTests: XCTestCase {
                             .environment(\.colorScheme, dark ? .dark : .light)
                         try Self.render(view, width: 360, height: feature.cardHeight,
                                    name: "\(language.rawValue)-\(dark ? "dark" : "light")-\(feature.rawValue)")
+                        if feature == .network {
+                            let pinned = HubCardView(store: store, displaySettings: display, requestKeyboard: {},
+                                                     holdInteraction: { _ in }, openDetails: {}, openSettings: {},
+                                                     pin: TopEdgeCardPin(isPinned: true, toggle: {}))
+                                .environment(\.colorScheme, dark ? .dark : .light)
+                            try Self.render(pinned, width: 360, height: feature.cardHeight,
+                                            name: "\(language.rawValue)-\(dark ? "dark" : "light")-pinned-network")
+                        }
                         if feature == .calendar {
                             store.calendar.mode = .month
                             store.calendar.selectedDate = Calendar.current.date(from: DateComponents(year: 2026, month: 8, day: 15))!

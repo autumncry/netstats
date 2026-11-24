@@ -167,11 +167,12 @@ struct HubPanelRootView: View {
     let holdInteraction: (Bool) -> Void
     let openDetails: () -> Void
     let openSettings: () -> Void
+    var pin: TopEdgeCardPin? = nil
 
     var body: some View {
         HubCardView(store: store, displaySettings: displaySettings,
                     requestKeyboard: requestKeyboard, holdInteraction: holdInteraction,
-                    openDetails: openDetails, openSettings: openSettings)
+                    openDetails: openDetails, openSettings: openSettings, pin: pin)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

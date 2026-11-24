@@ -57,6 +57,18 @@ final class TopEdgeGeometryTests: XCTestCase {
         XCTAssertEqual(TopEdgeGeometry.resolve(mode: .automatic, screens: [external(), notched()], preferredDisplayID: 2)?.mode, .notch)
     }
 
+    func testMenuBarGapHoldsExpandedCardOnlyAlongTheNotchToCardPath() throws {
+        var screen = notched()
+        screen.visibleFrame.size.height -= 8
+        let edge = try XCTUnwrap(TopEdgeGeometry.resolve(mode: .automatic, screens: [screen], preferredDisplayID: nil))
+        let card = edge.cardFrame(height: 208)
+        let middle = CGPoint(x: edge.anchorFrame.midX, y: (edge.anchorFrame.minY + card.maxY) / 2)
+        XCTAssertGreaterThan(edge.anchorFrame.minY, card.maxY)
+        XCTAssertTrue(edge.containsPathToCard(middle, card: card))
+        XCTAssertFalse(edge.containsPathToCard(CGPoint(x: edge.anchorFrame.minX - 1, y: middle.y), card: card))
+        XCTAssertFalse(edge.containsPathToCard(CGPoint(x: middle.x, y: edge.anchorFrame.maxY + 1), card: card))
+    }
+
     private func notched() -> TopEdgeScreen {
         TopEdgeScreen(displayID: 1, name: "Built-in", frame: CGRect(x: 0, y: 0, width: 1440, height: 900),
                       visibleFrame: CGRect(x: 0, y: 40, width: 1440, height: 828), safeAreaTop: 32,

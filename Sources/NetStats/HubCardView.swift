@@ -1,6 +1,12 @@
 import AppKit
 import SwiftUI
 
+/// Available only when the card is presented from the screen edge.
+struct TopEdgeCardPin {
+    let isPinned: Bool
+    let toggle: () -> Void
+}
+
 struct HubCardView: View {
     @ObservedObject var store: HubStore
     @ObservedObject var displaySettings: DisplaySettings
@@ -9,10 +15,12 @@ struct HubCardView: View {
     var openDetails: () -> Void
     var openSettings: () -> Void
 
+    var pin: TopEdgeCardPin? = nil
+
     var body: some View {
         HubCardBody(store: store, settings: store.settings, displaySettings: displaySettings,
                     requestKeyboard: requestKeyboard, holdInteraction: holdInteraction,
-                    openDetails: openDetails, openSettings: openSettings)
+                    openDetails: openDetails, openSettings: openSettings, pin: pin)
     }
 }
 
@@ -24,6 +32,7 @@ private struct HubCardBody: View {
     var holdInteraction: (Bool) -> Void
     var openDetails: () -> Void
     var openSettings: () -> Void
+    let pin: TopEdgeCardPin?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var language: AppLanguage { displaySettings.language }
     private var pageAnimation: Animation? {
@@ -38,6 +47,20 @@ private struct HubCardBody: View {
                     .frame(width: 25, height: 25).background(Color.accentColor.opacity(0.08), in: Circle())
                 Text(store.selected?.title(language) ?? "NetStats").font(.system(size: 13, weight: .semibold))
                 Spacer()
+                if let pin {
+                    let title = pin.isPinned ? tr("取消固定卡片", "Unpin card") : tr("固定卡片", "Pin card")
+                    Button(action: pin.toggle) {
+                        Image(systemName: pin.isPinned ? "pin.fill" : "pin")
+                            .font(.system(size: 12, weight: .medium))
+                            .frame(width: 26, height: 24)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(pin.isPinned ? Color.accentColor : .secondary)
+                    .help(title)
+                    .accessibilityLabel(title)
+                    .accessibilityAddTraits(pin.isPinned ? .isSelected : [])
+                }
                 Button(action: openDetails) {
                     Label(tr("详情", "Details"), systemImage: "arrow.up.right")
                         .font(.system(size: 10, weight: .medium))
