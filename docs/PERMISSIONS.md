@@ -12,6 +12,7 @@ NetStats 会尽量保持较小的权限范围。大多数系统指标通过 macO
 | 网络速度 | 不需要 | 读取聚合网络接口计数器。 |
 | 电池和电源 | 不需要 | 读取 macOS power source 信息。 |
 | 进程排行 | 不需要 | CPU 和内存排行来自本机进程列表。 |
+| 软件更新 | 网络访问 | 手动检查或开启自动检查时，从 GitHub 获取更新清单。开启自动下载后可下载已签名的更新。 |
 | 公网 IP 和地理位置 | 需要网络访问 | 可选请求 `ipinfo.io`，可在设置中关闭。 |
 | Clash Verge Dev 状态 | 不需要 | 读取同一台 Mac 上的本地进程、配置和控制接口状态。 |
 | 日历 | 系统日历完整访问 | 设置页主动请求；产品只读取日程，拒绝时仍可看日期。可在系统隐私设置撤销。 |
@@ -37,6 +38,7 @@ NetStats keeps its permission footprint intentionally small. Most system metrics
 | Network speed | None | Read aggregate network interface counters. |
 | Battery and power | None | Read macOS power source information. |
 | Process ranking | None | Uses local process listing for CPU and memory. |
+| Software updates | Network access | Manual or opt-in automatic checks contact GitHub. Opt-in automatic downloads fetch signed updates. |
 | Public IP and geolocation | Network access | Optional request to `ipinfo.io`; can be disabled in settings. |
 | Clash Verge Dev status | None | Reads local process/config/controller state on the same Mac. |
 | Calendar | Explicit Full Access | Product queries events only. Revoke in system privacy settings. |

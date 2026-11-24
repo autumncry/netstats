@@ -31,6 +31,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             ipGeolocationStore: ipGeolocationStore,
             clashStatusStore: clashStatusStore
         )
+        SoftwareUpdateService.shared.start()
         metricsStore.start()
         hubStore.start()
         ipGeolocationStore.start(lookupEnabled: displaySettings.publicIPLookupEnabled)

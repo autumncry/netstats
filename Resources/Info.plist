@@ -19,11 +19,23 @@
     <key>CFBundleShortVersionString</key>
     <string>2.0.2</string>
     <key>CFBundleVersion</key>
-    <string>29</string>
+    <string>30</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.utilities</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
+    <key>SUFeedURL</key>
+    <string>https://raw.githubusercontent.com/autumncry/netstats/main/updates/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>RvgLnn7hl+wO/+tgcUGn66SJxOX8G0wp4jZw4mxbvvI=</string>
+    <key>SUVerifyUpdateBeforeExtraction</key>
+    <true/>
+    <key>SURequireSignedFeed</key>
+    <true/>
+    <key>SUEnableAutomaticChecks</key>
+    <false/>
+    <key>SUAutomaticallyUpdate</key>
+    <false/>
     <key>LSUIElement</key>
     <true/>
     <key>NSHighResolutionCapable</key>

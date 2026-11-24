@@ -8,7 +8,7 @@ Use this checklist before publishing a new NetStats release.
 - [ ] Update `docs/release-notes/vX.Y.Z.md`.
 - [ ] Run `swift build -c release`.
 - [ ] Run `scripts/package_app.sh`.
-- [ ] Run `scripts/package_dmg.sh`.
+- [ ] Run `NETSTATS_UNIVERSAL=1 scripts/package_dmg.sh release` to build the DMG with the embedded Sparkle framework.
 - [ ] Confirm `dist/NetStats-X.Y.Z.dmg` exists.
 - [ ] Confirm `dist/NetStats-X.Y.Z.dmg.sha256` exists.
 - [ ] If signing is available, set `NETSTATS_CODESIGN_IDENTITY` before packaging.
@@ -36,6 +36,7 @@ Use this checklist before publishing a new NetStats release.
 - [ ] Create or update the GitHub Release.
 - [ ] Upload the DMG asset.
 - [ ] Upload the `.sha256` asset.
+- [ ] Follow the [signed-update guide](software-updates.md) to verify the downloaded release DMG and publish its signed appcast.
 - [ ] Use the release notes file as the release body.
 - [ ] Confirm GitHub Pages still deploys successfully.
 - [ ] Confirm CI passes on `main`.

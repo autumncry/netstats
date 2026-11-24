@@ -11,13 +11,11 @@ case "$MODE" in
 esac
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_BUNDLE="$ROOT_DIR/build/NetStats.app"
+APP_BUNDLE="${NETSTATS_BUILD_DIR:-$ROOT_DIR/build}/NetStats.app"
 APP_BINARY="$APP_BUNDLE/Contents/MacOS/NetStats"
 
 pkill -x NetStats >/dev/null 2>&1 || true
 bash "$ROOT_DIR/scripts/package_app.sh" "${NETSTATS_BUILD_CONFIGURATION:-debug}"
-# This signature is for the locally built development bundle, not distribution.
-/usr/bin/codesign --force --sign - "$APP_BUNDLE"
 
 open_app() {
   if [[ $# -gt 0 ]]; then

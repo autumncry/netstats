@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 struct AboutView: View {
+    @ObservedObject private var updates = SoftwareUpdateService.shared
     let language: AppLanguage
     private let projectURL = URL(string: "https://github.com/autumncry/netstats")!
 
@@ -16,6 +17,24 @@ struct AboutView: View {
                     Text(versionDescription).foregroundStyle(.secondary)
                     Text(tr("Mac 菜单栏里的系统监控与日常工具", "System monitoring and everyday tools in your Mac’s menu bar"))
                         .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Divider()
+            VStack(alignment: .leading, spacing: 10) {
+                Button(tr("检查更新…", "Check for Updates…")) { updates.check() }
+                    .disabled(!updates.canCheck && updates.startupError == nil)
+                if let version = updates.pendingVersion {
+                    Text(tr("有新版本：", "Update available: ") + version)
+                }
+                Toggle(tr("自动检查更新", "Automatically check for updates"),
+                       isOn: Binding(get: { updates.automaticChecks }, set: updates.setAutomaticChecks))
+                    .disabled(updates.startupError != nil)
+                Toggle(tr("自动下载更新，并在退出时安装", "Download updates automatically and install on quit"),
+                       isOn: Binding(get: { updates.automaticChecks && updates.automaticDownloads },
+                                     set: updates.setAutomaticDownloads))
+                    .disabled(!updates.automaticChecks || updates.startupError != nil)
+                if let error = updates.startupError {
+                    Text(error).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
                 }
             }
             Divider()

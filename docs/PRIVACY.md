@@ -8,6 +8,8 @@ NetStats 会在本机读取和处理 CPU、内存、硬盘、网络、电源、�
 
 公网 IP 与地理位置功能会请求 `https://ipinfo.io/json`，用于解析当前公网出口 IP。这个功能可以在 NetStats 设置中关闭；关闭后，NetStats 会清空公网 IP 展示，并且不会由 App 主动发起该查询。
 
+启用自动检查或手动检查软件更新时，Sparkle 会通过 HTTPS 请求本项目在 GitHub 托管的更新清单，下载更新时会连接 GitHub Release 附件服务。检查与自动下载的选择保存在本机“关于”设置中。GitHub 会收到常规网络请求信息，包括连接 IP。更新请求不包含日历、剪切板或文件暂存架内容。
+
 NetStats 只展示 Clash Verge Dev 状态，不会退出、重启或控制 Clash Verge Dev。
 
 公开截图时，请避免暴露真实 IP、位置、订阅名、代理组或节点名。
@@ -42,6 +44,8 @@ NetStats stores preferences and file-reference bookmarks in local `UserDefaults`
 Weather stores the last successful result locally and invokes only the configured, verified system shortcut. That shortcut may use Apple's weather/network/location services. NetStats does not inspect Weather.app private caches. No calendar, clipboard or file-reference contents are uploaded to a NetStats server.
 
 ## External Requests
+
+Manual or opted-in automatic update checks fetch the NetStats feed from GitHub over HTTPS. Downloading a release contacts GitHub’s asset service. GitHub receives standard connection information, including the requester’s IP address. Update requests do not send calendar events, clipboard contents or shelf entries.
 
 Public IP and geolocation lookup uses `https://ipinfo.io/json` to resolve the current public egress IP address. This request is optional and can be disabled in NetStats settings by turning off the public IP location option.
 

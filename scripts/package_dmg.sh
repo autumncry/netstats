@@ -5,39 +5,28 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIGURATION="${1:-release}"
 APP_NAME="NetStats"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$ROOT_DIR/Resources/Info.plist")"
-DIST_DIR="$ROOT_DIR/dist"
-STAGING_DIR="$DIST_DIR/dmg-staging"
+DIST_DIR="${NETSTATS_DIST_DIR:-$ROOT_DIR/dist}"
+mkdir -p "$DIST_DIR"
+STAGING_DIR="$(mktemp -d "$DIST_DIR/.dmg-staging.XXXXXX")"
+trap 'rm -rf "$STAGING_DIR"' EXIT
 DMG_PATH="$DIST_DIR/$APP_NAME-$VERSION.dmg"
 
 APP_PATH="$("$ROOT_DIR/scripts/package_app.sh" "$CONFIGURATION" | tail -n 1)"
 
-rm -rf "$STAGING_DIR" "$DMG_PATH"
-mkdir -p "$STAGING_DIR" "$DIST_DIR"
-cp -R "$APP_PATH" "$STAGING_DIR/$APP_NAME.app"
+ditto "$APP_PATH" "$STAGING_DIR/$APP_NAME.app"
 
-if [[ "${NETSTATS_CODESIGN_IDENTITY:-}" == "-" ]]; then
-    codesign --force --sign - "$STAGING_DIR/$APP_NAME.app"
-elif [[ -n "${NETSTATS_CODESIGN_IDENTITY:-}" ]]; then
-    codesign \
-        --force \
-        --timestamp \
-        --options runtime \
-        --sign "$NETSTATS_CODESIGN_IDENTITY" \
-        "$STAGING_DIR/$APP_NAME.app"
-else
-    echo "Skipping codesign: NETSTATS_CODESIGN_IDENTITY is not set" >&2
-fi
+codesign --verify --deep --strict "$STAGING_DIR/$APP_NAME.app"
+cp "$ROOT_DIR/docs/first-launch.txt" "$STAGING_DIR/首次安装 - First Launch.txt"
 
 ln -s /Applications "$STAGING_DIR/Applications"
 
 hdiutil create \
     -volname "$APP_NAME" \
     -srcfolder "$STAGING_DIR" \
+    -fs HFS+ \
     -ov \
     -format UDZO \
     "$DMG_PATH"
-
-rm -rf "$STAGING_DIR"
 
 if [[ "${NETSTATS_CODESIGN_IDENTITY:-}" == "-" ]]; then
     codesign --force --sign - "$DMG_PATH"
