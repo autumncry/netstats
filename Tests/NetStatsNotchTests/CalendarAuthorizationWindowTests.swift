@@ -5,24 +5,51 @@ import XCTest
 
 @MainActor
 final class CalendarAuthorizationWindowTests: XCTestCase {
-    func testDialogCanReturnToPreviousForegroundApplicationBeforeEventKitCompletes() {
+    func testEventKitDecisionCannotRestoreUntilTheSecureDialogHasDismissed() {
         let focus = CalendarPromptFocus(previousPID: 42)
-        focus.didActivate(.permissionDialog, at: 10)
-        XCTAssertTrue(focus.shouldReturn(to: .permissionDialog, at: 11))
-        XCTAssertTrue(focus.shouldReturn(to: .other(42), at: 11))
-        focus.didActivate(.other(42), at: 11)
-        XCTAssertTrue(focus.shouldReturn(to: .other(42), at: 11.005))
-        XCTAssertFalse(focus.shouldReturn(to: .other(42), at: 12), "Leave a previous app the user switched back to in front")
+        focus.didActivate(.permissionDialog)
+        focus.decisionReceived()
+        XCTAssertEqual(focus.dismissalAction(front: .permissionDialog), .wait)
+        focus.didActivate(.other(42))
+        XCTAssertEqual(focus.dismissalAction(front: .other(42)), .restore)
     }
 
-    func testAnotherApplicationOrNoPermissionPromptDoesNotTakeFocus() {
+    func testSystemMayHandBackFocusBeforeEventKitReportsTheDecision() {
         let focus = CalendarPromptFocus(previousPID: 42)
-        XCTAssertFalse(focus.shouldReturn(to: .other(42), at: 1))
-        focus.didActivate(.permissionDialog, at: 2)
-        XCTAssertFalse(focus.shouldReturn(to: .other(56), at: 3))
-        focus.didActivate(.other(56), at: 3)
-        XCTAssertFalse(focus.shouldReturn(to: .other(42), at: 3.1))
-        XCTAssertFalse(focus.shouldReturn(to: .unknown, at: 3.2))
+        focus.didActivate(.permissionDialog)
+        focus.didActivate(.other(42))
+        focus.decisionReceived()
+        XCTAssertEqual(focus.dismissalAction(front: .other(42)), .restore)
+        XCTAssertEqual(focus.dismissalAction(front: .settings), .restore)
+    }
+
+    func testAnotherAppTakesPrecedenceOverPendingPermissionRestoration() {
+        let focus = CalendarPromptFocus(previousPID: 42)
+        focus.didActivate(.permissionDialog)
+        focus.didActivate(.other(56))
+        focus.decisionReceived()
+        XCTAssertEqual(focus.dismissalAction(front: .other(56)), .abandon)
+        XCTAssertEqual(focus.dismissalAction(front: .other(42)), .abandon)
+        let withoutPrompt = CalendarPromptFocus(previousPID: nil)
+        withoutPrompt.decisionReceived()
+        XCTAssertEqual(withoutPrompt.dismissalAction(front: .other(999)), .abandon)
+    }
+
+    func testPromptMayReturnToTheActualInitiatingApplicationInsteadOfTheOriginalOne() {
+        let focus = CalendarPromptFocus(previousPID: 7, initiatingOwner: .other(42))
+        focus.decisionReceived()
+        XCTAssertEqual(focus.dismissalAction(front: .other(42)), .restore,
+                       "Workspace need not deliver an activation notification for a system dialog")
+    }
+
+    func testDecisionThenSystemDialogDismissalCanRevealAnUnanticipatedPreviousOwner() {
+        let focus = CalendarPromptFocus(previousPID: nil)
+        focus.didActivate(.permissionDialog)
+        focus.decisionReceived()
+        XCTAssertEqual(focus.dismissalAction(front: .permissionDialog), .wait)
+        XCTAssertEqual(focus.dismissalAction(front: .other(42)), .restore)
+        focus.didActivate(.other(56))
+        XCTAssertEqual(focus.dismissalAction(front: .other(56)), .abandon)
     }
 
     func testBothAuthorizationResultsReturnToTheExistingSettingsContent() async throws {
@@ -35,12 +62,37 @@ final class CalendarAuthorizationWindowTests: XCTestCase {
                     authorization = result
                     return result == .fullAccess
                 })
-                await controller.requestCalendarAccess(calendar, frontmost: { NSRunningApplication.current })
+                await controller.requestCalendarAccess(calendar, frontmost: { .settings })
                 XCTAssertEqual(calendar.authorization, result)
                 XCTAssertTrue(controller.isPresented)
                 XCTAssertTrue(controller.window === window)
                 XCTAssertTrue(window.contentViewController === content)
             }
+        }
+    }
+
+    func testControllerWaitsForSecureFocusToEndBeforeBringingBackTheSameWindow() async throws {
+        try await withSettings { controller, window in
+            var granted = false
+            var readsDuringDismissal = 0
+            let calendar = CalendarStore(currentAuthorization: { granted ? .fullAccess : .notDetermined },
+                                         requestFullAccess: { _ in
+                window.orderOut(nil)
+                granted = true
+                return true
+            })
+            await controller.requestCalendarAccess(calendar, frontmost: {
+                guard granted else { return .settings }
+                readsDuringDismissal += 1
+                if readsDuringDismissal <= 2 {
+                    XCTAssertFalse(window.isVisible, "Do not order Settings over the secure prompt")
+                    return .permissionDialog
+                }
+                return .settings
+            })
+            XCTAssertGreaterThanOrEqual(readsDuringDismissal, 3)
+            XCTAssertTrue(window.isVisible)
+            XCTAssertTrue(controller.window === window)
         }
     }
 
@@ -51,7 +103,7 @@ final class CalendarAuthorizationWindowTests: XCTestCase {
                 await Task.yield()
                 return false
             })
-            await controller.requestCalendarAccess(calendar, frontmost: { NSRunningApplication.current })
+            await controller.requestCalendarAccess(calendar, frontmost: { .settings })
             XCTAssertFalse(controller.isPresented)
         }
     }
@@ -66,7 +118,7 @@ final class CalendarAuthorizationWindowTests: XCTestCase {
                 await Task.yield()
                 return false
             })
-            await controller.requestCalendarAccess(calendar, frontmost: { NSRunningApplication.current })
+            await controller.requestCalendarAccess(calendar, frontmost: { .settings })
             XCTAssertFalse(controller.isPresented)
         }
     }

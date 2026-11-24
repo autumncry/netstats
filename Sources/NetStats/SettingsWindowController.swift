@@ -63,30 +63,51 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     // Only the explicit Settings button owns this round trip. Routine EventKit
     // refreshes must never present a prompt or move the user's window.
     func requestCalendarAccess(_ calendar: CalendarStore,
-                               frontmost: () -> NSRunningApplication? = { NSWorkspace.shared.frontmostApplication }) async {
+                               frontmost: () -> CalendarPromptFocus.Owner = { SettingsWindowController.focusOwner(NSWorkspace.shared.frontmostApplication) }) async {
         guard isPresented, !authorizingCalendar, let window else { return }
         authorizingCalendar = true
         defer { authorizingCalendar = false }
         let generation = presentationGeneration
-        let handoff = CalendarPromptFocus(previousPID: previousApplication?.processIdentifier)
+        let handoff = CalendarPromptFocus(previousPID: previousApplication?.processIdentifier, initiatingOwner: frontmost())
         let center = NSWorkspace.shared.notificationCenter
         let observer = center.addObserver(forName: NSWorkspace.didActivateApplicationNotification,
                                           object: nil, queue: .main) { note in
             guard let application = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
             MainActor.assumeIsolated {
-                handoff.didActivate(Self.focusOwner(application), at: ProcessInfo.processInfo.systemUptime)
+                handoff.didActivate(Self.focusOwner(application))
             }
         }
         defer { center.removeObserver(observer) }
         await calendar.requestAccess {
-            // Make the focus decision before querying potentially large calendars.
-            guard generation == presentationGeneration, !window.isMiniaturized,
-                  !NSApp.isHidden, window.isOnActiveSpace,
-                  handoff.shouldReturn(to: Self.focusOwner(frontmost()),
-                                       at: ProcessInfo.processInfo.systemUptime) else { return }
-            if !NSApp.isActive { NSApp.activate() }
-            window.makeKeyAndOrderFront(nil)
-            publishVisibility()
+            // EventKit may finish before the secure system dialog releases
+            // keyboard focus. WindowServer rejects activation in that interval.
+            // Check the actual foreground owner again as the dismissal settles.
+            handoff.decisionReceived()
+            let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+            var confirmedFront = false
+            while generation == presentationGeneration, !window.isMiniaturized,
+                  !NSApp.isHidden, window.isOnActiveSpace, !Task.isCancelled {
+                let owner = frontmost()
+                switch handoff.dismissalAction(front: owner) {
+                case .abandon:
+                    return
+                case .wait:
+                    confirmedFront = false
+                case .restore:
+                    let isFront = owner == .settings && window.isKeyWindow && NSApp.isActive
+                    if !isFront {
+                        window.orderFrontRegardless()
+                        NSApp.activate(ignoringOtherApps: true)
+                        window.makeKeyAndOrderFront(nil)
+                    }
+                    publishVisibility()
+                    // The secure host can hand focus back on a later run-loop turn.
+                    if isFront && confirmedFront { return }
+                    confirmedFront = isFront
+                }
+                guard ContinuousClock.now < deadline else { return }
+                do { try await Task.sleep(for: .milliseconds(80)) } catch { return }
+            }
         }
     }
 
@@ -170,40 +191,53 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     }
 }
 
-/// An accessory app's permission dialog can dismiss to the previous foreground
-/// app immediately *before* EventKit delivers its result. Accept that specific
-/// handoff, but do not interrupt a user who moved on to another app.
+/// Only the application that owned the interaction and the system prompt may
+/// hand the window back. A deliberate switch to another app cancels recovery.
 @MainActor
 final class CalendarPromptFocus {
     enum Owner: Equatable { case settings, permissionDialog, other(pid_t), unknown }
-    private let previousPID: pid_t?
+    enum DismissalAction { case wait, restore, abandon }
+    private let expectedReturns: Set<pid_t>
     private var sawPrompt = false
+    private var decided = false
+    private var returnTarget: pid_t?
     private var userSwitchedAway = false
-    private var returnedAt: TimeInterval?
 
-    init(previousPID: pid_t?) { self.previousPID = previousPID }
+    init(previousPID: pid_t?, initiatingOwner: Owner = .settings) {
+        var pids = Set<pid_t>()
+        if let previousPID { pids.insert(previousPID) }
+        if case .other(let pid) = initiatingOwner { pids.insert(pid) }
+        expectedReturns = pids
+    }
 
-    func didActivate(_ owner: Owner, at time: TimeInterval) {
+    func decisionReceived() { decided = true }
+
+    func didActivate(_ owner: Owner) {
         switch owner {
         case .permissionDialog: sawPrompt = true
         case .other(let pid):
-            if sawPrompt, pid == previousPID, returnedAt == nil { returnedAt = time }
-            else { userSwitchedAway = true }
+            if let target = returnTarget {
+                if target != pid { userSwitchedAway = true }
+            } else if expectedReturns.contains(pid) || (sawPrompt && decided) {
+                returnTarget = pid
+            } else {
+                userSwitchedAway = true
+            }
         case .settings, .unknown: break
         }
     }
 
-    func shouldReturn(to owner: Owner, at time: TimeInterval) -> Bool {
-        if owner == .settings { return true }
-        guard !userSwitchedAway else { return false }
+    func dismissalAction(front owner: Owner) -> DismissalAction {
+        guard decided, !userSwitchedAway else { return userSwitchedAway ? .abandon : .wait }
         switch owner {
-        case .permissionDialog: return true
+        case .settings: return .restore
+        case .permissionDialog:
+            sawPrompt = true
+            return .wait
+        case .unknown: return .wait
         case .other(let pid):
-            guard sawPrompt, pid == previousPID else { return false }
-            // Workspace's activation notification and EventKit's completion
-            // can arrive in either order during the prompt's dismissal.
-            return returnedAt.map { time - $0 <= 0.3 } ?? true
-        case .unknown, .settings: return false
+            didActivate(.other(pid))
+            return userSwitchedAway ? .abandon : .restore
         }
     }
 }

@@ -119,7 +119,7 @@ final class CalendarStore: ObservableObject {
     }
 
     /// Full Access is the only EventKit permission that allows reading. No event writes are performed.
-    func requestAccess(onDecision: () -> Void = {}) async {
+    func requestAccess(onDecision: () async -> Void = {}) async {
         guard !isRequesting else { return }
         isRequesting = true
         errorMessage = nil
@@ -129,7 +129,7 @@ final class CalendarStore: ObservableObject {
         } catch {
             errorMessage = "Calendar authorization did not complete."
         }
-        onDecision()
+        await onDecision()
         reload()
     }
 
