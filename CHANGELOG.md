@@ -4,6 +4,8 @@ All notable changes to NetStats will be documented in this file.
 
 ## v2.02 (2.0.2) — Unreleased
 
+- Fixed stray “NetStats” tooltips on macOS 27. Selected status metrics appear in the icon’s context menu. Right-click or Control-click the icon and choose Quit NetStats to exit.
+
 - Redesigned Terminal details with a charcoal/warm-orange palette, compact monospaced sections and scrollable content; removed the synthetic Health score and made display switches apply consistently.
 - Fixed the Device card clipping disk details and I/O above the feature bar by reserving enough height for its full content.
 - Added two-finger horizontal paging across enabled features, with vertical scrolling, editing and drag interactions protected.

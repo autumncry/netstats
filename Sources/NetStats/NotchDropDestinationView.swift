@@ -25,7 +25,8 @@ final class NotchDropDestinationView: NSView {
         setAccessibilityElement(enabled)
         setAccessibilityRole(enabled ? .button : .unknown)
         setAccessibilityLabel(enabled ? (language == .simplifiedChinese ? "打开 NetStats 屏顶卡片" : "Open NetStats top-edge card") : nil)
-        toolTip = enabled ? (language == .simplifiedChinese ? "NetStats · 悬停 1 秒或点击展开" : "NetStats · Hover for 1 second or click to open") : nil
+        let hint = language == .simplifiedChinese ? "NetStats · 悬停 1 秒或点击展开" : "NetStats · Hover for 1 second or click to open"
+        StatusItemTooltipPolicy.update(self, lines: enabled ? [hint] : [])
         if enabled {
             if topBarMaterial == nil {
                 let material = TopBarMaterialView(frame: bounds)

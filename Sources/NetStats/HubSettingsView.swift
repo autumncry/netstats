@@ -147,18 +147,20 @@ private struct HubSettingsContent: View {
                 Toggle(tr("显示历史趋势", "Show history"), isOn: $displaySettings.showHistory)
                 Toggle(tr("显示进程排行", "Show process rankings"), isOn: $displaySettings.showProcessRanks)
             }
-            section(tr("菜单栏指标与悬停提示", "Menu-bar metrics & hover tooltip")) {
+            section(StatusItemTooltipPolicy.usesNativeTooltips
+                    ? tr("菜单栏指标与悬停提示", "Menu-bar metrics & hover tooltip")
+                    : tr("菜单栏指标与右键概览", "Menu-bar metrics & context menu")) {
                 Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 12) {
                     GridRow {
                         Text(tr("指标", "Metric")).frame(maxWidth: .infinity, alignment: .leading)
                         Text(tr("菜单栏", "Menu bar"))
-                        Text(tr("悬停提示", "Tooltip"))
+                        Text(metricSummaryLabel)
                     }.font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
                     ForEach(MonitorMetric.configurableCases) { metric in
                         GridRow {
                             Label(metric.title(language: language), systemImage: metric.systemImage)
                             Toggle(metric.title(language: language) + " " + tr("菜单栏", "menu bar"), isOn: metricBinding(metric, statusBar: true)).labelsHidden()
-                            Toggle(metric.title(language: language) + " " + tr("悬停提示", "tooltip"), isOn: metricBinding(metric, statusBar: false)).labelsHidden()
+                            Toggle(metric.title(language: language) + " " + metricSummaryLabel, isOn: metricBinding(metric, statusBar: false)).labelsHidden()
                         }
                     }
                 }
@@ -189,6 +191,9 @@ private struct HubSettingsContent: View {
 
     private func featureToggle(_ feature: HubFeature) -> some View {
         Toggle(tr("在功能卡片中启用", "Enable in the feature cards"), isOn: featureBinding(feature))
+    }
+    private var metricSummaryLabel: String {
+        StatusItemTooltipPolicy.usesNativeTooltips ? tr("悬停提示", "Tooltip") : tr("右键概览", "Context menu")
     }
     private func featureBinding(_ feature: HubFeature) -> Binding<Bool> {
         Binding(get: { settings.enabledFeatures.contains(feature) }, set: { settings.set($0, feature: feature) })
