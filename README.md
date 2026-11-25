@@ -33,6 +33,8 @@
 
 ## 安装
 
+源码分支已准备 **v2.02（待发布）**：新增双指切页与动画、自动顶栏适配、登录自启和关于页，并重设计 Terminal 详情。[查看更新与预览](docs/release-notes/v2.02.md)。下方下载仍为已发布的 v2.01。
+
 **[下载 NetStats-2.0.1.dmg](https://github.com/autumncry/netstats/releases/download/v2.01/NetStats-2.0.1.dmg)** · macOS 14+ · Apple Silicon / Intel
 
 升级前请先退出旧版 NetStats；替换应用会保留原有设置和本机历史。
@@ -40,7 +42,18 @@
 1. 打开 DMG，将 **NetStats.app** 拖入 **Applications（应用程序）**。
 2. 从应用程序打开 NetStats，点击菜单栏图标开始使用。
 
-> 安装包采用临时签名，尚未经过 Apple 公证。若首次打开被拦截，请确认来自本仓库后，在 **系统设置 → 隐私与安全性** 中允许打开。[校验文件](https://github.com/autumncry/netstats/releases/download/v2.01/NetStats-2.0.1.dmg.sha256)
+**首次打开。** 如果 macOS 提示“无法验证开发者”，先核对官方发布页提供的 [DMG 校验文件](https://github.com/autumncry/netstats/releases/download/v2.01/NetStats-2.0.1.dmg.sha256)。确认来源后，前往 **系统设置 → 隐私与安全性 → 仍要打开**。
+
+也可以在将应用复制到“应用程序”后，手动对这个已核验的副本执行：
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/NetStats.app"
+open "/Applications/NetStats.app"
+```
+
+这条命令会移除该应用包的下载隔离标记。若校验失败或系统报告恶意软件，请停止安装。完整步骤见[首次安装指南](docs/first-launch.txt)，新版 DMG 中也有离线副本。
+
+**后续更新。** 首次手动安装含更新器的版本后，进入 **设置 → 关于 → 检查更新**。你可以选择自动检查，或进一步允许后台下载经签名验证的更新并在退出时安装。这些选项默认关闭。v2.01 需要手动升级一次。
 
 ## 一张卡片，六种用途
 

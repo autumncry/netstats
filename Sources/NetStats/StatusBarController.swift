@@ -14,6 +14,14 @@ final class StatusBarController: NSObject {
     private var hubPanel: HubPanel?
     private var environmentObservers: [(NotificationCenter, NSObjectProtocol)] = []
     private var trackingMenus = Set<ObjectIdentifier>()
+    private var hubInteractionHeld = false
+    private var hubFileDragging = false
+    private var contextMenu: StatusItemContextMenu?
+    private var sessionBridge: StatusItemSessionBridge?
+    private var panelBelongsToSession = false
+    private var panelAnchor: CGRect?
+    private var menuAnchor: CGRect?
+    private var isPresentingContextMenu = false
     private var cancellables = Set<AnyCancellable>()
     private var eventMonitors: [Any] = []
     var onVisibilityChange: ((Bool) -> Void)?
@@ -44,6 +52,9 @@ final class StatusBarController: NSObject {
     }
 
     func stop() {
+        sessionBridge?.stop()
+        sessionBridge = nil
+        contextMenu?.menu.cancelTracking()
         for eventMonitor in eventMonitors {
             NSEvent.removeMonitor(eventMonitor)
         }
@@ -54,15 +65,21 @@ final class StatusBarController: NSObject {
         closeHubPanel()
         hubPanel?.stopPopoverTracking()
         closePanel()
+        statusItem.button?.target = nil
+        NSStatusBar.system.removeStatusItem(statusItem)
     }
 
     func showDetails() {
         guard let button = statusItem.button else { return }
+        if hubPanel?.isVisible != true { panelAnchor = menuAnchor ?? resolveAnchor(for: button) }
+        guard let frame = panelFrame(size: currentPanelSize) else { dismiss(); return }
         closeHubPanel()
-        showPanel(relativeTo: button)
+        showPanel(frame: frame)
     }
 
     func dismiss() {
+        panelBelongsToSession = false
+        sessionBridge?.cancel()
         closeHubPanel()
         closePanel()
     }
@@ -72,12 +89,50 @@ final class StatusBarController: NSObject {
             return
         }
 
-        button.image = NSImage(systemSymbolName: "cpu", accessibilityDescription: "NetStats")
+        button.image = NSImage(systemSymbolName: "cpu", accessibilityDescription: nil)
         button.image?.isTemplate = true
         button.imagePosition = .imageLeading
         button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        button.setAccessibilityLabel("NetStats")
+        contextMenu = StatusItemContextMenu(
+            language: { [weak displaySettings] in displaySettings?.language ?? .english },
+            overviewLines: { [weak self] in
+                guard let self, !StatusItemTooltipPolicy.usesNativeTooltips else { return [] }
+                return self.summaryLines(for: self.metricsStore.snapshot)
+            },
+            onTrackingChanged: { [weak self] tracking in
+                guard let self else { return }
+                self.isPresentingContextMenu = tracking
+                self.onVisibilityChange?(tracking || self.panel.isVisible || self.hubPanel?.isVisible == true)
+            },
+            showCard: { [weak self, weak button] in
+                guard let self, let button else { return }
+                self.showHubPanel(relativeTo: button)
+            },
+            showDetails: { [weak self] in self?.showDetails() },
+            settings: { [weak self] in self?.openSettings?() },
+            quit: { NSApp.terminate(nil) }
+        )
+
+        sessionBridge = StatusItemSessionBridge(statusItem: statusItem, onBegin: { [weak self] in
+            guard let self else { return }
+            guard let button = self.statusItem.button, !self.isPresentingContextMenu else {
+                self.sessionBridge?.cancel()
+                return
+            }
+            self.panelBelongsToSession = true
+            self.showHubPanel(relativeTo: button)
+        }, onEnd: { [weak self] _ in
+            guard let self, self.panelBelongsToSession else { return }
+            self.panelBelongsToSession = false
+            self.closeHubPanel()
+            self.closePanel()
+        })
+        // A primary menu would take over the icon's normal left-click behavior.
+        // New AppKit versions open the card through the expanded-interface delegate.
+        guard sessionBridge == nil else { return }
         button.target = self
-        button.action = #selector(togglePanel(_:))
+        button.action = #selector(handleStatusItemClick(_:))
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
     }
 
@@ -121,15 +176,19 @@ final class StatusBarController: NSObject {
             var consumed = false
             MainActor.assumeIsolated {
                 guard let self else { return }
+                if self.handleSessionButtonEvent(event) {
+                    consumed = true
+                    return
+                }
                 if event.type == .keyDown, event.keyCode == 53 {
                     if let hubPanel = self.hubPanel, hubPanel.isVisible,
                        hubPanel.owns(event.window) || hubPanel.isKeyWindow {
-                        if !hubPanel.dismissOwnedChild() { self.closeHubPanel() }
+                        if !hubPanel.dismissOwnedChild() { self.dismiss() }
                         consumed = true
                         return
                     }
                     if self.panel.isVisible, event.window === self.panel {
-                        self.closePanel()
+                        self.dismiss()
                         consumed = true
                         return
                     }
@@ -169,7 +228,10 @@ final class StatusBarController: NSObject {
 
         hubStore.$selected
             .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.resizeHubPanel() }
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.resizeHubPanel(animated: self.hubStore.pageTransitionDirection != nil)
+            }
             .store(in: &cancellables)
         hubStore.settings.objectWillChange
             .receive(on: RunLoop.main)
@@ -194,17 +256,16 @@ final class StatusBarController: NSObject {
             .sortedForDisplay()
             .compactMap { statusBarText(for: $0, snapshot: snapshot) }
             .joined(separator: "  ")
-        button.title = title.isEmpty ? "" : " \(title)"
-        button.toolTip = tooltipText(for: snapshot)
+        let nextTitle = title.isEmpty ? "" : " \(title)"
+        if button.title != nextTitle { button.title = nextTitle }
+        let lines = StatusItemTooltipPolicy.usesNativeTooltips ? summaryLines(for: snapshot) : []
+        StatusItemTooltipPolicy.update(button, lines: lines)
     }
 
-    private func tooltipText(for snapshot: SystemSnapshot) -> String {
-        let language = displaySettings.language
-        let lines = displaySettings.hoverMetrics
-            .sortedForDisplay()
-            .flatMap { tooltipLines(for: $0, snapshot: snapshot, language: language) }
-
-        return lines.isEmpty ? LocalizedCopy.text(.systemMonitor, language: language) : lines.joined(separator: "\n")
+    private func summaryLines(for snapshot: SystemSnapshot) -> [String] {
+        displaySettings.hoverMetrics.sortedForDisplay().flatMap {
+            tooltipLines(for: $0, snapshot: snapshot, language: displaySettings.language)
+        }
     }
 
     private func statusBarText(for metric: MonitorMetric, snapshot: SystemSnapshot) -> String? {
@@ -268,7 +329,12 @@ final class StatusBarController: NSObject {
         "\(Int(round(value * 100)))%"
     }
 
-    @objc private func togglePanel(_ sender: NSStatusBarButton) {
+    @objc private func handleStatusItemClick(_ sender: NSStatusBarButton) {
+        let event = NSApp.currentEvent
+        if StatusItemClickAction.resolve(type: event?.type, modifiers: event?.modifierFlags ?? []) == .contextMenu {
+            showContextMenu(relativeTo: sender)
+            return
+        }
         if panel.isVisible || hubPanel?.isVisible == true {
             closeHubPanel()
             closePanel()
@@ -277,7 +343,32 @@ final class StatusBarController: NSObject {
         }
     }
 
+    // Only consume events actually delivered to this status button. The local
+    // mouse-down carries the real button/modifiers even when a control action
+    // on macOS 27 is subsequently delivered as a gesture or keyboard event.
+    private func handleSessionButtonEvent(_ event: NSEvent) -> Bool {
+        guard let sessionBridge, !isPresentingContextMenu, let button = statusItem.button,
+              let action = StatusItemClickAction.sessionAction(for: event, button: button,
+                  expanded: sessionBridge.isActive || panel.isVisible || hubPanel?.isVisible == true) else { return false }
+        switch action {
+        case .contextMenu: showContextMenu(relativeTo: button)
+        case .toggleCard: dismiss()
+        }
+        return true
+    }
+
+    private func showContextMenu(relativeTo button: NSStatusBarButton) {
+        guard !isPresentingContextMenu, let menu = contextMenu?.menu,
+              let anchor = resolveAnchor(for: button) else { return }
+        menuAnchor = anchor
+        dismiss()
+        defer { menuAnchor = nil }
+        menu.popUp(positioning: nil, at: NSPoint(x: anchor.minX, y: anchor.minY), in: nil)
+    }
+
     private func showHubPanel(relativeTo button: NSStatusBarButton) {
+        panelAnchor = menuAnchor ?? resolveAnchor(for: button)
+        guard panelAnchor != nil else { dismiss(); return }
         closePanel()
         hubStore.selectDefault()
         if hubPanel == nil { hubPanel = makeHubPanel() }
@@ -289,10 +380,14 @@ final class StatusBarController: NSObject {
     private func makeHubPanel() -> HubPanel {
         let result = HubPanel()
         result.trackPopoverLifecycle()
+        result.onNavigatePage = { [weak hubStore] direction in hubStore?.selectAdjacent(direction) ?? false }
         let root = HubPanelRootView(
             store: hubStore, displaySettings: displaySettings,
             requestKeyboard: { [weak self] in self?.hubPanel?.requestKeyboard() },
-            holdInteraction: { _ in },
+            holdInteraction: { [weak self] held in
+                self?.hubInteractionHeld = held
+                self?.updateHubPageSuppression()
+            },
             openDetails: { [weak self] in self?.showDetails() },
             openSettings: { [weak self] in self?.openSettings?() }
         )
@@ -300,8 +395,14 @@ final class StatusBarController: NSObject {
         let destination = NotchDropDestinationView(frame: .zero)
         destination.acceptsFiles = { [weak self] in self?.hubStore.settings.enabledFeatures.contains(.shelf) == true }
         destination.onEnter = { [weak self] in
+            self?.hubFileDragging = true
+            self?.updateHubPageSuppression()
             self?.hubStore.select(feature: .shelf)
             self?.resizeHubPanel()
+        }
+        destination.onExit = { [weak self] in
+            self?.hubFileDragging = false
+            self?.updateHubPageSuppression()
         }
         destination.onDrop = { [weak self] urls in
             self?.hubStore.shelf.add(urls: urls)
@@ -313,37 +414,34 @@ final class StatusBarController: NSObject {
         return result
     }
 
-    private func resizeHubPanel() {
-        guard let hubPanel, let button = statusItem.button else { return }
-        let height = hubStore.currentHeight
-        let size = NSSize(width: 360, height: height)
-        hubPanel.setFrame(NSRect(origin: panelOrigin(relativeTo: button, size: size), size: size), display: true)
+    private func updateHubPageSuppression() {
+        hubPanel?.suppressesPageNavigation = hubInteractionHeld || hubFileDragging || !trackingMenus.isEmpty
+    }
+
+    private func resizeHubPanel(animated: Bool = false) {
+        guard let hubPanel, let frame = panelFrame(size: NSSize(width: 360, height: hubStore.currentHeight)) else { return }
+        hubPanel.setCardFrame(frame, animated: animated)
     }
 
     private func closeHubPanel() {
         guard let hubPanel, hubPanel.isVisible else { return }
         hubPanel.dismissOwnedChildren()
         hubPanel.endInteraction()
+        hubInteractionHeld = false
+        hubFileDragging = false
         hubPanel.orderOut(nil)
         trackingMenus.removeAll()
         onVisibilityChange?(panel.isVisible)
     }
 
-    private func showPanel(relativeTo button: NSStatusBarButton) {
+    private func showPanel(frame: NSRect) {
         onVisibilityChange?(true)
-        let size = currentPanelSize
-        let frame = NSRect(origin: panelOrigin(relativeTo: button, size: size), size: size)
         panel.setFrame(frame, display: true)
         panel.orderFrontRegardless()
     }
 
     private func resizePanelForCurrentStyle() {
-        guard panel.isVisible, let button = statusItem.button else {
-            return
-        }
-
-        let size = currentPanelSize
-        let frame = NSRect(origin: panelOrigin(relativeTo: button, size: size), size: size)
+        guard panel.isVisible, let frame = panelFrame(size: currentPanelSize) else { return }
         panel.setFrame(frame, display: true)
     }
 
@@ -357,21 +455,24 @@ final class StatusBarController: NSObject {
     }
 
     private func closeVisiblePanelIfNeeded(forScreenPoint point: NSPoint) {
+        guard !isPresentingContextMenu else { return }
         if let hubPanel, hubPanel.isVisible {
             if hubPanel.containsOwnedPoint(point) || !trackingMenus.isEmpty { return }
-            if let button = statusItem.button, screenFrame(for: button).contains(point) { return }
-            closeHubPanel()
+            if panelAnchor?.contains(point) == true { return }
+            dismiss()
+            return
         }
         guard panel.isVisible else { return }
         if panel.frame.contains(point) { return }
-        if let button = statusItem.button, screenFrame(for: button).contains(point) { return }
-        closePanel()
+        if panelAnchor?.contains(point) == true { return }
+        dismiss()
     }
 
-    private func panelOrigin(relativeTo button: NSStatusBarButton, size: NSSize) -> NSPoint {
-        let buttonFrame = screenFrame(for: button)
-        let screen = button.window?.screen ?? NSScreen.main
-        let visibleFrame = screen?.visibleFrame ?? buttonFrame
+    private func panelFrame(size: NSSize) -> NSRect? {
+        guard let buttonFrame = panelAnchor,
+              let screen = NSScreen.screens.first(where: { $0.frame.contains(NSPoint(x: buttonFrame.midX, y: buttonFrame.midY)) })
+        else { return nil }
+        let visibleFrame = screen.visibleFrame
         let margin: CGFloat = 8
 
         var x = buttonFrame.midX - size.width / 2
@@ -380,25 +481,25 @@ final class StatusBarController: NSObject {
         x = min(max(x, visibleFrame.minX + margin), visibleFrame.maxX - size.width - margin)
         y = min(max(y, visibleFrame.minY + margin), visibleFrame.maxY - size.height - margin)
 
-        return NSPoint(x: x, y: y)
+        return NSRect(origin: NSPoint(x: x, y: y), size: size)
     }
 
-    private func screenFrame(for button: NSStatusBarButton) -> NSRect {
-        guard let window = button.window else {
-            return NSRect(origin: .zero, size: currentPanelSize)
-        }
-
-        let frameInWindow = button.convert(button.bounds, to: nil)
-        return window.convertToScreen(frameInWindow)
+    private func resolveAnchor(for button: NSStatusBarButton) -> NSRect? {
+        let frame = button.window.map { $0.convertToScreen(button.convert(button.bounds, to: nil)) }
+        return StatusItemAnchor.resolve(buttonFrame: frame, pointer: NSEvent.mouseLocation,
+                                        screens: NSScreen.screens.map { .init(frame: $0.frame, visibleFrame: $0.visibleFrame) },
+                                        menuBarHeight: NSStatusBar.system.thickness)
     }
 
     private func handleLocalMouseEvent(_ event: NSEvent) {
-        if event.window === statusItem.button?.window { return }
+        guard !isPresentingContextMenu else { return }
+        if let window = statusItem.button?.window, event.window === window { return }
         if let hubPanel, hubPanel.isVisible {
             if hubPanel.owns(event.window) || hubPanel.containsOwnedPoint(NSEvent.mouseLocation) || !trackingMenus.isEmpty { return }
-            closeHubPanel()
+            dismiss()
+        } else if panel.isVisible, event.window !== panel {
+            dismiss()
         }
-        if panel.isVisible, event.window !== panel { closePanel() }
     }
 
     private func observeEnvironment() {
@@ -414,8 +515,8 @@ final class StatusBarController: NSObject {
         for (center, name) in entries {
             let token = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
-                    self?.closeHubPanel()
-                    self?.closePanel()
+                    if name == NSWorkspace.didActivateApplicationNotification, self?.sessionBridge?.isActive == true { return }
+                    self?.dismiss()
                 }
             }
             environmentObservers.append((center, token))
@@ -428,6 +529,7 @@ final class StatusBarController: NSObject {
                       self.hubPanel?.isVisible == true,
                       self.hubPanel?.containsOwnedPoint(NSEvent.mouseLocation) == true else { return }
                 self.trackingMenus.insert(menuID)
+                self.updateHubPageSuppression()
             }
         }
         let end = NotificationCenter.default.addObserver(forName: NSMenu.didEndTrackingNotification, object: nil, queue: .main) { [weak self] note in
@@ -435,6 +537,7 @@ final class StatusBarController: NSObject {
             let menuID = ObjectIdentifier(menu)
             MainActor.assumeIsolated {
                 _ = self?.trackingMenus.remove(menuID)
+                self?.updateHubPageSuppression()
             }
         }
         environmentObservers.append((.default, begin))

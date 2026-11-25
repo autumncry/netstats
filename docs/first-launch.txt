@@ -1,0 +1,32 @@
+NetStats · 首次安装 / First launch
+
+1. 从 https://github.com/autumncry/netstats/releases 下载同一版本的 .dmg 和 .dmg.sha256 文件。
+   在它们所在的目录运行 shasum -a 256 -c 校验文件名（替换为实际的 .dmg.sha256 文件名）。
+   输出 OK 后打开 DMG。退出旧版，将 NetStats.app 拖到“应用程序”，弹出磁盘映像，再从“应用程序”打开。
+
+2. 若个人签名版本提示“无法验证开发者”，可在尝试打开后选择
+   系统设置 → 隐私与安全性 → 仍要打开，再按 macOS 提示确认。
+   如果你已核对来源与校验值，选择终端方式时，可手动逐行执行：
+
+   xattr -dr com.apple.quarantine "/Applications/NetStats.app"
+   open "/Applications/NetStats.app"
+
+   第一条命令只移除这个应用包及其内容的下载隔离标记。校验不符或系统报告恶意软件时，请停止安装。
+
+3. 以后打开“设置 → 关于 → 检查更新”。自动检查和后台下载均为可选项。
+   开启自动下载后，Sparkle 会验证更新签名，准备好后可在退出应用时安装。
+   较早版本需先手动安装一次含更新器的版本。
+
+1. Download the DMG and its matching .dmg.sha256 file from the same official GitHub release above.
+   In their download directory, run shasum -a 256 -c followed by the actual checksum file name.
+   After it reports OK, quit any old copy, open the DMG, drag NetStats.app into Applications,
+   eject the disk image, and launch NetStats from Applications.
+
+2. If macOS cannot verify the developer of an ad-hoc signed build, try opening the app, then use
+   System Settings → Privacy & Security → Open Anyway. Alternatively, after verifying the download,
+   run the two commands above for your installed copy. They remove its download quarantine
+   attribute and launch it. Stop if the checksum fails or macOS identifies malware.
+
+3. Use Settings → About → Check for Updates after installing a build with the updater.
+   Automatic checks and downloads are optional. Automatic downloads allow Sparkle to prepare a
+   verified update for installation when the app quits. Older builds require one manual upgrade.

@@ -1,5 +1,16 @@
 import Foundation
 
+/// Disk-backed virtual memory allocated by macOS, in bytes.
+public struct SwapUsage: Equatable, Sendable {
+    public let usedBytes: UInt64
+    public let totalBytes: UInt64
+
+    public init(usedBytes: UInt64, totalBytes: UInt64) {
+        self.usedBytes = usedBytes
+        self.totalBytes = totalBytes
+    }
+}
+
 public struct MemorySnapshot: Equatable, Sendable {
     public let usedBytes: UInt64
     public let totalBytes: UInt64
@@ -8,6 +19,7 @@ public struct MemorySnapshot: Equatable, Sendable {
     public let wiredBytes: UInt64
     public let compressedBytes: UInt64
     public let pressure: Double
+    public let swap: SwapUsage?
 
     public init(
         usedBytes: UInt64,
@@ -16,7 +28,8 @@ public struct MemorySnapshot: Equatable, Sendable {
         cachedBytes: UInt64,
         wiredBytes: UInt64,
         compressedBytes: UInt64,
-        pressure: Double
+        pressure: Double,
+        swap: SwapUsage? = nil
     ) {
         self.usedBytes = usedBytes
         self.totalBytes = totalBytes
@@ -25,6 +38,7 @@ public struct MemorySnapshot: Equatable, Sendable {
         self.wiredBytes = wiredBytes
         self.compressedBytes = compressedBytes
         self.pressure = pressure
+        self.swap = swap
     }
 
     var usage: Double {

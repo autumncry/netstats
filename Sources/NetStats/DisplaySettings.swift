@@ -230,6 +230,11 @@ public final class DisplaySettings: ObservableObject {
 
     // Hardware availability is transient; it must never overwrite the saved choice.
     @Published var notchAvailable = false
+    @Published var topEdgeMode: TopEdgeMode = .automatic {
+        didSet { defaults.set(topEdgeMode.rawValue, forKey: "display.topEdgeMode") }
+    }
+    @Published var activeTopEdgeMode: TopEdgeMode?
+    @Published var topEdgeScreenName = ""
 
     private static let statusBarKey = "display.statusBarMetrics"
     private static let hoverKey = "display.hoverMetrics"
@@ -265,6 +270,7 @@ public final class DisplaySettings: ObservableObject {
         showHistory = Self.readBool(from: defaults, key: Self.showHistoryKey, fallback: true)
         showProcessRanks = Self.readBool(from: defaults, key: Self.showProcessRanksKey, fallback: true)
         notchEnabled = Self.readBool(from: defaults, key: Self.notchEnabledKey, fallback: false)
+        topEdgeMode = defaults.string(forKey: "display.topEdgeMode").flatMap(TopEdgeMode.init(rawValue:)) ?? .automatic
     }
 
     func binding(for metric: MonitorMetric, inStatusBar: Bool) -> Bool {
@@ -387,6 +393,8 @@ enum LocalizedCopy {
         case loading
         case location
         case memoryLoad
+        case swap
+        case swapHelp
         case metric
         case mixedPortUnavailable
         case network
@@ -457,6 +465,8 @@ enum LocalizedCopy {
         .language: "Language",
         .loading: "Loading...",
         .location: "Location",
+        .swap: "swap",
+        .swapHelp: "Used / currently allocated swap space",
         .memoryLoad: "Memory Load",
         .metric: "Metric",
         .mixedPortUnavailable: "Mixed port unavailable",
@@ -528,6 +538,8 @@ enum LocalizedCopy {
         .language: "语言",
         .loading: "加载中...",
         .location: "地理位置",
+        .swap: "swap",
+        .swapHelp: "已用交换空间 / 系统当前分配的交换空间",
         .memoryLoad: "内存负载",
         .metric: "指标",
         .mixedPortUnavailable: "混合端口不可用",

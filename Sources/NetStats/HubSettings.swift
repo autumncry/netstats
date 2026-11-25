@@ -7,8 +7,8 @@ enum HubFeature: String, CaseIterable, Identifiable, Codable, Sendable {
     var cardHeight: CGFloat {
         switch self {
         case .network, .weather: 208
-        case .device, .shelf: 232
-        case .calendar, .clipboard: 248
+        case .shelf: 232
+        case .device, .calendar, .clipboard: 248
         }
     }
     var symbol: String {

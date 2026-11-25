@@ -33,6 +33,8 @@ Check network and device activity, glance at your calendar and weather, find som
 
 ## Installation
 
+The source branch prepares **v2.02 (not released yet)** with animated two-finger paging, automatic top-bar fallback, launch at login, About, and redesigned Terminal details. [Changes and previews](docs/release-notes/v2.02.md). The download below is the published v2.01 release.
+
 **[Download NetStats-2.0.1.dmg](https://github.com/autumncry/netstats/releases/download/v2.01/NetStats-2.0.1.dmg)** · macOS 14+ · Apple Silicon / Intel
 
 When upgrading, quit the old version first. Replacing the app preserves existing settings and local history.
@@ -40,7 +42,18 @@ When upgrading, quit the old version first. Replacing the app preserves existing
 1. Open the DMG and drag **NetStats.app** into **Applications**.
 2. Launch NetStats from Applications, then click its menu-bar item.
 
-> The app is ad-hoc signed and not notarized by Apple. If macOS blocks the first launch, confirm you downloaded it from this repository, then allow it in **System Settings → Privacy & Security**. [Checksum](https://github.com/autumncry/netstats/releases/download/v2.01/NetStats-2.0.1.dmg.sha256)
+**First launch.** If macOS cannot verify the developer, check the DMG against the [release checksum](https://github.com/autumncry/netstats/releases/download/v2.01/NetStats-2.0.1.dmg.sha256). Once you trust the download, use **System Settings → Privacy & Security → Open Anyway**.
+
+Alternatively, after copying the verified app into Applications, run these commands for that copy:
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/NetStats.app"
+open "/Applications/NetStats.app"
+```
+
+This removes the downloaded app’s quarantine attribute. Stop if the checksum fails or macOS reports malware. The [first-launch guide](docs/first-launch.txt) also ships in new disk images for offline use.
+
+**Subsequent updates.** After manually installing a build with the updater, use **Settings → About → Check for Updates**. You can opt into automatic checks and allow verified updates to download in the background and install when you quit. Both options start off. Installations of v2.01 need one manual upgrade.
 
 ## One card, six uses
 

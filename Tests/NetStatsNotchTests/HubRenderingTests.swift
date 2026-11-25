@@ -4,6 +4,65 @@ import XCTest
 @testable import NetStatsCore
 
 final class HubRenderingTests: XCTestCase {
+    @MainActor
+    func testDeviceMetricsFitAboveNavigationWithBottomBreathingRoom() {
+        // Measure the actual text layout, not just the output image dimensions.
+        // Header is 25 + 12 + 7 pt; navigation is 40 + 6 + 6 pt.
+        let viewportHeight = HubFeature.device.cardHeight - 44 - 52
+        for language in AppLanguage.allCases {
+            for load: Double? in [nil, 0.3] {
+                for name in ["MacBook Pro", String(repeating: "Long device name ", count: 8)] {
+                    let content = HubDeviceContent(snapshot: .empty,
+                                                   gpu: GPUReading(name: "Apple GPU", utilization: load),
+                                                   deviceName: name, language: language)
+                        .frame(width: 328).fixedSize(horizontal: false, vertical: true)
+                    let hosting = NSHostingView(rootView: content)
+                    let naturalHeight = hosting.fittingSize.height
+                    XCTAssertGreaterThan(naturalHeight, 0)
+                    XCTAssertLessThanOrEqual(naturalHeight + 8, viewportHeight + 0.01,
+                                             "Device rows and I/O need room above the navigation: \(language), \(String(describing: load)), content=\(naturalHeight), available=\(viewportHeight)")
+                }
+            }
+        }
+    }
+
+    @MainActor
+    func testDeviceCardReflectsUnavailableZeroAndUsedSwapSamples() throws {
+        let samples: [SwapUsage?] = [nil, SwapUsage(usedBytes: 0, totalBytes: 0),
+                                     SwapUsage(usedBytes: 2 << 30, totalBytes: 4 << 30)]
+        for language in AppLanguage.allCases {
+            var inkCounts: [Int] = []
+            for (index, swap) in samples.enumerated() {
+                let memory = MemorySnapshot(usedBytes: 17 << 30, totalBytes: 24 << 30, availableBytes: 7 << 30,
+                                            cachedBytes: 0, wiredBytes: 0, compressedBytes: 0, pressure: 0.5, swap: swap)
+                let disk = DiskSnapshot(usedBytes: 300 << 30, totalBytes: 500 << 30, freeBytes: 200 << 30,
+                                        readBytesPerSecond: 1_048_576, writeBytesPerSecond: 2_097_152)
+                let snapshot = SystemSnapshot(timestamp: .distantPast, cpuUsage: 0.22, memory: memory, disk: disk,
+                                              network: SystemSnapshot.empty.network, power: .noBattery)
+                let content = HubDeviceContent(snapshot: snapshot, gpu: GPUReading(name: "Apple GPU", utilization: 0.3),
+                                               deviceName: "MacBook Pro", language: language)
+                    .frame(width: 328, height: HubFeature.device.cardHeight - 96, alignment: .top)
+                    .background(.white).environment(\.colorScheme, .light)
+                let rendered = try Self.render(content, width: 328, height: HubFeature.device.cardHeight - 96,
+                                               name: "device-swap-\(language.rawValue)-\(index)")
+                // Only the right side of the memory row should change. Count
+                // visible ink instead of comparing PNG metadata or exact glyphs.
+                let region = CGRect(x: rendered.width / 2, y: rendered.height / 3,
+                                    width: rendered.width / 2, height: rendered.height / 3)
+                let bitmap = NSBitmapImageRep(cgImage: try XCTUnwrap(rendered.cropping(to: region)))
+                var ink = 0
+                for y in 0..<bitmap.pixelsHigh {
+                    for x in 0..<bitmap.pixelsWide {
+                        if let color = bitmap.colorAt(x: x, y: y), color.redComponent < 0.5 { ink += 1 }
+                    }
+                }
+                inkCounts.append(ink)
+            }
+            XCTAssertLessThan(inkCounts[0], inkCounts[1], "An allocated-size pair should replace the dash")
+            XCTAssertLessThan(inkCounts[1], inkCounts[2], "The nonzero GB pair should be visible in full")
+        }
+    }
+
     func testNetworkHandlesUploadDominantAndUnavailableSamples() async throws {
         try await MainActor.run {
             for language in AppLanguage.allCases {
@@ -55,6 +114,14 @@ final class HubRenderingTests: XCTestCase {
                             .environment(\.colorScheme, dark ? .dark : .light)
                         try Self.render(view, width: 360, height: feature.cardHeight,
                                    name: "\(language.rawValue)-\(dark ? "dark" : "light")-\(feature.rawValue)")
+                        if feature == .network {
+                            let pinned = HubCardView(store: store, displaySettings: display, requestKeyboard: {},
+                                                     holdInteraction: { _ in }, openDetails: {}, openSettings: {},
+                                                     pin: TopEdgeCardPin(isPinned: true, toggle: {}))
+                                .environment(\.colorScheme, dark ? .dark : .light)
+                            try Self.render(pinned, width: 360, height: feature.cardHeight,
+                                            name: "\(language.rawValue)-\(dark ? "dark" : "light")-pinned-network")
+                        }
                         if feature == .calendar {
                             store.calendar.mode = .month
                             store.calendar.selectedDate = Calendar.current.date(from: DateComponents(year: 2026, month: 8, day: 15))!
@@ -73,7 +140,8 @@ final class HubRenderingTests: XCTestCase {
         }
     }
 
-    @MainActor private static func render<V: View>(_ view: V, width: CGFloat, height: CGFloat, name: String) throws {
+    @discardableResult
+    @MainActor private static func render<V: View>(_ view: V, width: CGFloat, height: CGFloat, name: String) throws -> CGImage {
         let renderer = ImageRenderer(content: view.frame(width: width, height: height))
         renderer.scale = 2
         let rendered = try XCTUnwrap(renderer.cgImage)
@@ -102,5 +170,6 @@ final class HubRenderingTests: XCTestCase {
             }
             window.contentView = nil
         }
+        return rendered
     }
 }

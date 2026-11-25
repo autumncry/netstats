@@ -10,7 +10,7 @@ final class NotchPanelController {
     private let hubStore: HubStore
     private let displaySettings: DisplaySettings
     private var interaction = HubHoverLifecycle()
-    private var geometry: NotchGeometry?
+    private var geometry: TopEdgeGeometry?
     private var detailsVisible = false
     private var suspended = false
     private var started = false
@@ -31,10 +31,18 @@ final class NotchPanelController {
     private var dragDwell = NotchFileDragDwell()
     private let reveal = NotchRevealState()
     private var panel: HubPanel?
-    private var connector: HubPanel?
     private var dropAnchor: HubPanel?
     private var anchorDestination: NotchDropDestinationView?
     private var cardDestination: NotchDropDestinationView?
+
+    var isPinned: Bool { reveal.isPinned }
+
+    func togglePin() {
+        guard cardPresented, canMonitor, !detailsVisible else { return }
+        reveal.isPinned.toggle()
+        // Reconcile any pending close deadline immediately.
+        updatePointer()
+    }
 
     var isHoverSuppressed: Bool { detailsVisible }
 
@@ -50,12 +58,27 @@ final class NotchPanelController {
         observeEnvironment()
         displaySettings.$notchEnabled
             .removeDuplicates()
+            .dropFirst()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.configurationChanged() }
             .store(in: &subscriptions)
+        displaySettings.$topEdgeMode
+            .removeDuplicates()
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.environmentChanged() }
+            .store(in: &subscriptions)
+        displaySettings.$language
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.refreshDropAnchor() }
+            .store(in: &subscriptions)
         hubStore.$selected
             .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.resizeCard() }
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.resizeCard(animated: self.hubStore.pageTransitionDirection != nil)
+            }
             .store(in: &subscriptions)
         hubStore.settings.objectWillChange
             .receive(on: RunLoop.main)
@@ -82,8 +105,6 @@ final class NotchPanelController {
         panel?.contentView = nil
         panel?.stopPopoverTracking()
         panel = nil
-        connector?.orderOut(nil)
-        connector = nil
         cardDestination = nil
     }
 
@@ -113,19 +134,18 @@ final class NotchPanelController {
     }
 
     private func refreshGeometry() {
-        geometry = NSScreen.screens.compactMap { screen -> NotchGeometry? in
-            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber,
-                  let left = screen.auxiliaryTopLeftArea,
-                  let right = screen.auxiliaryTopRightArea
-            else { return nil }
-            return NotchGeometry.detect(
-                screenFrame: screen.frame, visibleFrame: screen.visibleFrame,
-                safeAreaTop: screen.safeAreaInsets.top,
-                auxiliaryLeft: left, auxiliaryRight: right,
-                isBuiltIn: CGDisplayIsBuiltin(CGDirectDisplayID(number.uint32Value)) != 0
-            )
-        }.first
-        displaySettings.notchAvailable = geometry != nil
+        let screens = NSScreen.screens.compactMap { screen -> TopEdgeScreen? in
+            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return nil }
+            return TopEdgeScreen(displayID: number.uint32Value, name: screen.localizedName,
+                                 frame: screen.frame, visibleFrame: screen.visibleFrame,
+                                 safeAreaTop: screen.safeAreaInsets.top,
+                                 auxiliaryLeft: screen.auxiliaryTopLeftArea, auxiliaryRight: screen.auxiliaryTopRightArea,
+                                 isBuiltIn: CGDisplayIsBuiltin(number.uint32Value) != 0)
+        }
+        geometry = TopEdgeGeometry.resolve(mode: displaySettings.topEdgeMode, screens: screens, preferredDisplayID: CGMainDisplayID())
+        displaySettings.notchAvailable = TopEdgeGeometry.resolve(mode: .notch, screens: screens, preferredDisplayID: nil) != nil
+        displaySettings.activeTopEdgeMode = geometry?.mode
+        displaySettings.topEdgeScreenName = geometry?.screenName ?? ""
     }
 
     private func configurationChanged() {
@@ -173,7 +193,7 @@ final class NotchPanelController {
         guard canMonitor else { return }
         let point = NSEvent.mouseLocation
         if [.leftMouseDown, .rightMouseDown, .otherMouseDown].contains(event.type),
-           cardPresented,
+           cardPresented, !isPinned,
            panel?.owns(event.window) != true,
            panel?.containsOwnedPoint(point) != true,
            geometry?.containsTrigger(point) != true,
@@ -193,13 +213,15 @@ final class NotchPanelController {
 
     private func updatePointer() {
         guard canMonitor, let geometry else { return }
+        panel?.suppressesPageNavigation = held
         let point = NSEvent.mouseLocation
         interaction.update(
             now: ProcessInfo.processInfo.systemUptime,
             inTrigger: geometry.containsTrigger(point),
-            inCard: cardPresented && panel?.containsOwnedPoint(point) == true,
+            inCard: cardPresented && (panel?.containsOwnedPoint(point) == true
+                || panel.map { geometry.containsPathToCard(point, card: $0.frame) } == true),
             pointerDown: NSEvent.pressedMouseButtons != 0,
-            held: held,
+            held: held || isPinned,
             suppressed: detailsVisible
         )
         if interaction.isVisible && !cardPresented { showCard() }
@@ -227,6 +249,7 @@ final class NotchPanelController {
 
     private func reset(animated: Bool) {
         interaction.dismiss()
+        reveal.isPinned = false
         deadlineTask?.cancel()
         deadlineTask = nil
         scheduledDeadline = nil
@@ -244,17 +267,21 @@ final class NotchPanelController {
         let result = HubPanel()
         result.trackPopoverLifecycle()
         result.onKeyboardInteraction = { [weak self] in self?.setUIHeld(true) }
-        let root = HubPanelRootView(
-            store: hubStore, displaySettings: displaySettings,
-            requestKeyboard: { [weak self] in
-                self?.panel?.requestKeyboard()
-                self?.setUIHeld(true)
-            },
-            holdInteraction: { [weak self] in self?.setUIHeld($0) },
-            openDetails: { [weak self] in self?.openDetails?() },
-            openSettings: { [weak self] in self?.openSettings?() }
-        )
-        let hosting = NSHostingView(rootView: NotchPanelContent(content: root, reveal: reveal))
+        result.onNavigatePage = { [weak self] direction in self?.hubStore.selectAdjacent(direction) ?? false }
+        let content = NotchPanelContent(reveal: reveal) { [weak self, hubStore, displaySettings] pinned in
+            HubPanelRootView(
+                store: hubStore, displaySettings: displaySettings,
+                requestKeyboard: { [weak self] in
+                    self?.panel?.requestKeyboard()
+                    self?.setUIHeld(true)
+                },
+                holdInteraction: { [weak self] in self?.setUIHeld($0) },
+                openDetails: { [weak self] in self?.openDetails?() },
+                openSettings: { [weak self] in self?.openSettings?() },
+                pin: TopEdgeCardPin(isPinned: pinned, toggle: { [weak self] in self?.togglePin() })
+            )
+        }
+        let hosting = NSHostingView(rootView: content)
         let destination = makeDestination(isAnchor: false)
         destination.embed(hosting)
         result.contentView = destination
@@ -281,9 +308,10 @@ final class NotchPanelController {
         panel?.ignoresMouseEvents = false
         reveal.expanded = false
         panel?.orderFrontRegardless()
-        connector?.orderFrontRegardless()
-        // The real destination must survive ordering the expanded card in.
-        dropAnchor?.orderFrontRegardless()
+        anchorDestination?.setCardExpanded(true)
+        // Reorder an active destination without resurrecting an old grip from
+        // another display mode (e.g. physical notch with Shelf now disabled).
+        if let dropAnchor, dropAnchor.isVisible { dropAnchor.orderFrontRegardless() }
         withAnimation(.easeInOut(duration: 0.22)) { reveal.expanded = true }
     }
 
@@ -298,7 +326,7 @@ final class NotchPanelController {
         guard animated, panel?.isVisible == true else {
             reveal.expanded = false
             panel?.orderOut(nil)
-            connector?.orderOut(nil)
+            anchorDestination?.setCardExpanded(false)
             return
         }
         withAnimation(.easeInOut(duration: 0.22)) { reveal.expanded = false }
@@ -307,39 +335,21 @@ final class NotchPanelController {
             do { try await Task.sleep(for: .milliseconds(220)) } catch { return }
             guard let self, !Task.isCancelled, self.revealGeneration == generation else { return }
             self.panel?.orderOut(nil)
-            self.connector?.orderOut(nil)
+            self.anchorDestination?.setCardExpanded(false)
             self.hideTask = nil
         }
     }
 
-    private func resizeCard() {
+    private func resizeCard(animated: Bool = false) {
         guard cardPresented, let geometry, let panel else { return }
         let height = hubStore.currentHeight
         let frame = geometry.cardFrame(height: height, width: 360)
-        panel.setFrame(frame, display: true)
-        let gap = geometry.notchFrame.minY - frame.maxY
-        if gap > 0 {
-            if connector == nil {
-                let bridge = HubPanel()
-                bridge.hasShadow = false
-                bridge.ignoresMouseEvents = true
-                let material = NSVisualEffectView()
-                material.material = .menu
-                material.blendingMode = .behindWindow
-                material.state = .active
-                bridge.contentView = material
-                connector = bridge
-            }
-            connector?.setFrame(NSRect(x: geometry.notchFrame.minX, y: frame.maxY,
-                                      width: geometry.notchFrame.width, height: gap), display: true)
-            if panel.isVisible { connector?.orderFrontRegardless() }
-        } else {
-            connector?.orderOut(nil)
-        }
+        panel.setCardFrame(frame, animated: animated)
     }
 
     private func refreshDropAnchor() {
-        guard acceptsShelfFiles, let geometry else {
+        guard canMonitor, !detailsVisible, let geometry,
+              geometry.mode == .topBar || acceptsShelfFiles else {
             anchorDestination?.cancel()
             dropAnchor?.orderOut(nil)
             return
@@ -347,16 +357,32 @@ final class NotchPanelController {
         if dropAnchor == nil {
             let anchor = HubPanel()
             anchor.hasShadow = false
-            // This almost transparent paint remains inside the already black
-            // camera housing; the actual window alpha stays 1 for drag delivery.
-            anchor.backgroundColor = NSColor.black.withAlphaComponent(0.01)
             anchor.ignoresMouseEvents = false
             let destination = makeDestination(isAnchor: true)
             anchor.contentView = destination
             dropAnchor = anchor
             anchorDestination = destination
         }
-        dropAnchor?.setFrame(geometry.notchFrame, display: true)
+        if let destination = anchorDestination {
+            let isTopBar = geometry.mode == .topBar
+            destination.setTopBarAppearance(isTopBar, language: displaySettings.language)
+            destination.setCardExpanded(cardPresented)
+            destination.onClick = isTopBar ? { [weak self] in
+                guard let self, self.canMonitor, !self.detailsVisible else { return }
+                if self.cardPresented { self.dismiss() }
+                else {
+                    self.interaction.expandForFileDrag()
+                    self.showCard()
+                    self.updatePointer()
+                }
+            } : nil
+        }
+        // Keep the real drop target inside the camera housing, or in the
+        // visible top-bar strip below the menu bar on displays without a notch.
+        // Fully transparent AppKit windows can pass through hits. This minimal
+        // backing also keeps the top-bar destination hittable when its material hides.
+        dropAnchor?.backgroundColor = NSColor.black.withAlphaComponent(0.01)
+        dropAnchor?.setFrame(geometry.anchorFrame, display: true)
         dropAnchor?.orderFrontRegardless()
     }
 
@@ -434,7 +460,10 @@ final class NotchPanelController {
             }
         }
         observe(workspace, NSWorkspace.activeSpaceDidChangeNotification) { [weak self] _ in self?.environmentChanged() }
-        observe(workspace, NSWorkspace.didActivateApplicationNotification) { [weak self] _ in self?.reset(animated: false) }
+        observe(workspace, NSWorkspace.didActivateApplicationNotification) { [weak self] _ in
+            guard let self, !self.isPinned else { return }
+            self.reset(animated: false)
+        }
         observe(.default, NSMenu.didBeginTrackingNotification) { [weak self] menuID in
             guard let self, self.cardPresented, let menuID,
                   self.panel?.containsOwnedPoint(NSEvent.mouseLocation) == true else { return }
@@ -461,15 +490,18 @@ final class NotchPanelController {
 }
 
 @MainActor
-private final class NotchRevealState: ObservableObject { @Published var expanded = false }
+private final class NotchRevealState: ObservableObject {
+    @Published var expanded = false
+    @Published var isPinned = false
+}
 
 private struct NotchPanelContent: View {
-    let content: HubPanelRootView
     @ObservedObject var reveal: NotchRevealState
+    let content: (Bool) -> HubPanelRootView
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        content
+        content(reveal.isPinned)
             .scaleEffect(
                 x: reduceMotion || reveal.expanded ? 1 : 0.86,
                 y: reduceMotion || reveal.expanded ? 1 : 0.01,

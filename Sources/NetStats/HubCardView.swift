@@ -1,6 +1,12 @@
 import AppKit
 import SwiftUI
 
+/// Available only when the card is presented from the screen edge.
+struct TopEdgeCardPin {
+    let isPinned: Bool
+    let toggle: () -> Void
+}
+
 struct HubCardView: View {
     @ObservedObject var store: HubStore
     @ObservedObject var displaySettings: DisplaySettings
@@ -9,10 +15,12 @@ struct HubCardView: View {
     var openDetails: () -> Void
     var openSettings: () -> Void
 
+    var pin: TopEdgeCardPin? = nil
+
     var body: some View {
         HubCardBody(store: store, settings: store.settings, displaySettings: displaySettings,
                     requestKeyboard: requestKeyboard, holdInteraction: holdInteraction,
-                    openDetails: openDetails, openSettings: openSettings)
+                    openDetails: openDetails, openSettings: openSettings, pin: pin)
     }
 }
 
@@ -24,7 +32,12 @@ private struct HubCardBody: View {
     var holdInteraction: (Bool) -> Void
     var openDetails: () -> Void
     var openSettings: () -> Void
+    let pin: TopEdgeCardPin?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var language: AppLanguage { displaySettings.language }
+    private var pageAnimation: Animation? {
+        store.pageTransitionDirection == nil ? nil : HubPageMotion.animation(reduceMotion: reduceMotion)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,37 +47,44 @@ private struct HubCardBody: View {
                     .frame(width: 25, height: 25).background(Color.accentColor.opacity(0.08), in: Circle())
                 Text(store.selected?.title(language) ?? "NetStats").font(.system(size: 13, weight: .semibold))
                 Spacer()
+                if let pin {
+                    let title = pin.isPinned ? tr("取消固定卡片", "Unpin card") : tr("固定卡片", "Pin card")
+                    Button(action: pin.toggle) {
+                        Image(systemName: pin.isPinned ? "pin.fill" : "pin")
+                            .font(.system(size: 12, weight: .medium))
+                            .frame(width: 26, height: 24)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(pin.isPinned ? Color.accentColor : .secondary)
+                    .help(title)
+                    .accessibilityLabel(title)
+                    .accessibilityAddTraits(pin.isPinned ? .isSelected : [])
+                }
                 Button(action: openDetails) {
                     Label(tr("详情", "Details"), systemImage: "arrow.up.right")
                         .font(.system(size: 10, weight: .medium))
                 }.buttonStyle(.plain).foregroundStyle(.secondary)
             }.padding(.horizontal, 15).padding(.top, 12).padding(.bottom, 7)
 
-            Group {
-                switch store.selected {
-                case .network: HubNetworkView(metricsStore: store.metricsStore, language: language)
-                case .device: HubDeviceView(metricsStore: store.metricsStore, store: store, language: language)
-                case .calendar: CalendarFeatureView(store: store.calendar, language: language)
-                case .weather: WeatherFeatureView(store: store.weather, language: language)
-                case .clipboard:
-                    ClipboardFeatureView(store: store.clipboard, language: language,
-                                         requestKeyboard: requestKeyboard, holdInteraction: holdInteraction)
-                case .shelf: ShelfFeatureView(store: store.shelf, language: language)
-                case nil:
-                    VStack(spacing: 8) {
-                        Text(tr("在设置中启用常用功能", "Enable features in Settings"))
-                            .font(.system(size: 12)).foregroundStyle(.secondary)
-                        Button(tr("打开设置", "Open Settings"), action: openSettings)
-                            .controlSize(.small)
-                    }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            GeometryReader { viewport in
+                ZStack(alignment: .topLeading) {
+                    HubFeaturePage(store: store, feature: store.selected, revision: store.selectionRevision,
+                                   language: language, requestKeyboard: requestKeyboard,
+                                   holdInteraction: holdInteraction, openSettings: openSettings)
+                        .frame(width: viewport.size.width, height: viewport.size.height, alignment: .topLeading)
+                        .id(store.selectionRevision)
+                        .transition(HubPageMotion.transition(direction: store.pageTransitionDirection,
+                                                             reduceMotion: reduceMotion))
                 }
+                .frame(width: viewport.size.width, height: viewport.size.height, alignment: .topLeading)
+                .clipped()
             }
             .padding(.horizontal, 16)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
             HStack(spacing: 2) {
                 ForEach(HubFeature.allCases.filter { settings.enabledFeatures.contains($0) }) { feature in
-                    Button { store.select(feature: feature) } label: {
+                    Button { store.select(feature: feature, animated: true) } label: {
                         VStack(spacing: 4) {
                             Image(systemName: feature.symbol)
                                 .font(.system(size: 16, weight: .medium))
@@ -96,8 +116,50 @@ private struct HubCardBody: View {
         }
         .frame(width: 360, height: store.currentHeight)
         .hubGlassSurface()
+        .animation(pageAnimation, value: store.selectionRevision)
+        .onChange(of: store.selectionRevision) { _, _ in holdInteraction(false) }
     }
     private func tr(_ chinese: String, _ english: String) -> String { language == .simplifiedChinese ? chinese : english }
+}
+
+/// A departing page can outlive its selection while its transition finishes.
+/// Scope callbacks to that visit rather than only the feature name so a fast
+/// reversal cannot let an old Clipboard page clear the new page's input hold.
+private struct HubFeaturePage: View {
+    @ObservedObject var store: HubStore
+    let feature: HubFeature?
+    let revision: UInt64
+    let language: AppLanguage
+    let requestKeyboard: () -> Void
+    let holdInteraction: (Bool) -> Void
+    let openSettings: () -> Void
+
+    var body: some View {
+        Group {
+            switch feature {
+            case .network: HubNetworkView(metricsStore: store.metricsStore, language: language)
+            case .device: HubDeviceView(metricsStore: store.metricsStore, store: store, language: language)
+            case .calendar: CalendarFeatureView(store: store.calendar, language: language)
+            case .weather: WeatherFeatureView(store: store.weather, language: language)
+            case .clipboard:
+                ClipboardFeatureView(store: store.clipboard, language: language,
+                                     requestKeyboard: { if isCurrent { requestKeyboard() } },
+                                     holdInteraction: { if isCurrent { holdInteraction($0) } })
+            case .shelf: ShelfFeatureView(store: store.shelf, language: language)
+            case nil:
+                VStack(spacing: 8) {
+                    Text(language == .simplifiedChinese ? "在设置中启用常用功能" : "Enable features in Settings")
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                    Button(language == .simplifiedChinese ? "打开设置" : "Open Settings", action: openSettings)
+                        .controlSize(.small)
+                }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .allowsHitTesting(isCurrent)
+        .accessibilityHidden(!isCurrent)
+    }
+
+    private var isCurrent: Bool { revision == store.selectionRevision }
 }
 
 struct HubGlassSurface: ViewModifier {
@@ -228,11 +290,27 @@ private struct HubDeviceView: View {
     @ObservedObject var store: HubStore
     var language: AppLanguage
     var body: some View {
-        let s = metricsStore.snapshot
+        HubDeviceContent(snapshot: metricsStore.snapshot, gpu: store.gpu,
+                         deviceName: ProcessInfo.processInfo.hostName, language: language)
+    }
+}
+
+struct HubDeviceContent: View {
+    let snapshot: SystemSnapshot
+    let gpu: GPUReading
+    let deviceName: String
+    let language: AppLanguage
+
+    var body: some View {
+        let s = snapshot
         VStack(spacing: 5) {
-            metric("CPU", symbol: "cpu", value: percent(s.cpuUsage), detail: ProcessInfo.processInfo.hostName, ratio: s.cpuUsage)
-            metric("GPU", symbol: "rectangle.3.group", value: store.gpu.utilization.map(percent) ?? "—", detail: store.gpu.name + (store.gpu.utilization == nil ? (language == .simplifiedChinese ? " · 负载不可用" : " · load unavailable") : ""), ratio: store.gpu.utilization)
-            metric(language == .simplifiedChinese ? "内存" : "Memory", symbol: "memorychip", value: percent(s.memory.usage), detail: "\(ByteFormatter.memory(s.memory.usedBytes)) / \(ByteFormatter.memory(s.memory.totalBytes))", ratio: s.memory.usage)
+            metric("CPU", symbol: "cpu", value: percent(s.cpuUsage), detail: deviceName, ratio: s.cpuUsage)
+            metric("GPU", symbol: "rectangle.3.group", value: gpu.utilization.map(percent) ?? "—", detail: gpu.name + (gpu.utilization == nil ? (language == .simplifiedChinese ? " · 负载不可用" : " · load unavailable") : ""), ratio: gpu.utilization)
+            metric(language == .simplifiedChinese ? "内存" : "Memory", symbol: "memorychip",
+                   value: percent(s.memory.usage),
+                   detail: "\(ByteFormatter.memory(s.memory.usedBytes)) / \(ByteFormatter.memory(s.memory.totalBytes))",
+                   ratio: s.memory.usage,
+                   trailingDetail: "\(LocalizedCopy.text(.swap, language: language))  \(ByteFormatter.swap(s.memory.swap))")
             metric(language == .simplifiedChinese ? "启动盘" : "Startup disk", symbol: "internaldrive", value: percent(s.disk.usage), detail: "\(ByteFormatter.memory(s.disk.usedBytes)) / \(ByteFormatter.memory(s.disk.totalBytes))", ratio: s.disk.usage)
             HStack(spacing: 4) {
                 Text(language == .simplifiedChinese ? "全部磁盘 I/O" : "All disk I/O")
@@ -241,7 +319,8 @@ private struct HubDeviceView: View {
             }.font(.system(size: 9)).monospacedDigit().foregroundStyle(.secondary)
         }
     }
-    private func metric(_ title: String, symbol: String, value: String, detail: String, ratio: Double?) -> some View {
+    private func metric(_ title: String, symbol: String, value: String, detail: String, ratio: Double?,
+                        trailingDetail: String? = nil) -> some View {
         HStack(spacing: 8) {
             Image(systemName: symbol).font(.system(size: 12)).foregroundStyle(.secondary).frame(width: 18)
             VStack(alignment: .leading, spacing: 1) {
@@ -257,6 +336,12 @@ private struct HubDeviceView: View {
                             Capsule().fill(.primary.opacity(0.07))
                                 .overlay(alignment: .leading) { Capsule().fill(Color.accentColor.opacity(0.65)).frame(width: g.size.width * min(max(ratio, 0), 1)) }
                         }.frame(width: 54, height: 3)
+                    }
+                    if let trailingDetail {
+                        Spacer(minLength: 0)
+                        Text(trailingDetail)
+                            .font(.system(size: 10, weight: .medium)).monospacedDigit()
+                            .lineLimit(1)
                     }
                 }
             }

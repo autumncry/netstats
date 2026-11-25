@@ -48,7 +48,7 @@ struct HubCalendarEvent: Identifiable {
 
 @MainActor
 final class CalendarStore: ObservableObject {
-    @Published private(set) var authorization = EKEventStore.authorizationStatus(for: .event)
+    @Published private(set) var authorization: EKAuthorizationStatus
     @Published private(set) var calendars: [HubCalendarDescriptor] = []
     @Published private(set) var events: [HubCalendarEvent] = []
     @Published private(set) var eventDays: Set<Date> = []
@@ -59,6 +59,8 @@ final class CalendarStore: ObservableObject {
     @Published private(set) var selectedCalendarIDs: Set<String>
 
     private let eventStore = EKEventStore()
+    private let currentAuthorization: () -> EKAuthorizationStatus
+    private let requestFullAccess: @MainActor (EKEventStore) async throws -> Bool
     private let defaults: UserDefaults
     private let calendar = Calendar.current
     private var usesAllCalendars: Bool
@@ -67,7 +69,12 @@ final class CalendarStore: ObservableObject {
     private var observer: NSObjectProtocol?
     private var timer: Timer?
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard,
+         currentAuthorization: @escaping () -> EKAuthorizationStatus = { EKEventStore.authorizationStatus(for: .event) },
+         requestFullAccess: @escaping @MainActor (EKEventStore) async throws -> Bool = { try await $0.requestFullAccessToEvents() }) {
+        self.currentAuthorization = currentAuthorization
+        self.requestFullAccess = requestFullAccess
+        authorization = currentAuthorization()
         self.defaults = defaults
         if let saved = defaults.stringArray(forKey: "hub.calendar.selectedIDs") {
             selectedCalendarIDs = Set(saved)
@@ -112,16 +119,17 @@ final class CalendarStore: ObservableObject {
     }
 
     /// Full Access is the only EventKit permission that allows reading. No event writes are performed.
-    func requestAccess() async {
+    func requestAccess(onDecision: () async -> Void = {}) async {
         guard !isRequesting else { return }
         isRequesting = true
         errorMessage = nil
         defer { isRequesting = false }
         do {
-            _ = try await eventStore.requestFullAccessToEvents()
+            _ = try await requestFullAccess(eventStore)
         } catch {
             errorMessage = "Calendar authorization did not complete."
         }
+        await onDecision()
         reload()
     }
 
@@ -152,7 +160,7 @@ final class CalendarStore: ObservableObject {
     }
 
     func reload() {
-        authorization = EKEventStore.authorizationStatus(for: .event)
+        authorization = currentAuthorization()
         guard enabled, hasAccess else {
             calendars = []
             events = []

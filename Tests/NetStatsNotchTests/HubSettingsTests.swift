@@ -20,7 +20,7 @@ final class HubSettingsTests: XCTestCase {
         XCTAssertNil(HubFeature.defaultSelection(in: []))
         XCTAssertEqual(HubFeature.network.cardHeight, 208)
         XCTAssertEqual(HubFeature.calendar.cardHeight, 248)
-        XCTAssertEqual(HubFeature.device.cardHeight, 232)
+        XCTAssertEqual(HubFeature.device.cardHeight, 248)
     }
 
     func testInvalidGPUValuesAreUnavailable() {

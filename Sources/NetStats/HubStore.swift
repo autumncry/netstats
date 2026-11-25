@@ -10,6 +10,8 @@ final class HubStore: ObservableObject {
     let calendar: CalendarStore
     let weather: WeatherStore
     @Published private(set) var selected: HubFeature?
+    private(set) var pageTransitionDirection: HubPageDirection?
+    private(set) var selectionRevision: UInt64 = 0
     @Published private(set) var gpu = GPUReading(name: "GPU", utilization: nil)
     private var subscriptions = Set<AnyCancellable>()
     private var started = false
@@ -49,9 +51,37 @@ final class HubStore: ObservableObject {
         calendar.stop()
         weather.stop()
     }
-    func selectDefault() { selected = HubFeature.defaultSelection(in: settings.enabledFeatures) }
-    func select(feature: HubFeature) {
+    func selectDefault() {
+        pageTransitionDirection = nil
+        updateSelection(HubFeature.defaultSelection(in: settings.enabledFeatures), animated: false)
+    }
+    func select(feature: HubFeature, animated: Bool = false) {
         guard settings.enabledFeatures.contains(feature) else { return }
+        updateSelection(feature, animated: animated)
+    }
+    @discardableResult
+    func selectAdjacent(_ direction: HubPageDirection) -> Bool {
+        let enabled = HubFeature.allCases.filter { settings.enabledFeatures.contains($0) }
+        guard let selected, let index = enabled.firstIndex(of: selected) else { return false }
+        let next = index + (direction == .next ? 1 : -1)
+        guard enabled.indices.contains(next) else { return false }
+        updateSelection(enabled[next], animated: true)
+        return true
+    }
+
+    private func updateSelection(_ feature: HubFeature?, animated: Bool) {
+        guard feature != selected else { return }
+        if animated, let old = selected, let feature,
+           let oldIndex = HubFeature.allCases.firstIndex(of: old),
+           let newIndex = HubFeature.allCases.firstIndex(of: feature) {
+            pageTransitionDirection = newIndex > oldIndex ? .next : .previous
+        } else {
+            pageTransitionDirection = nil
+        }
+        // Set transition metadata before selected publishes its change. Old
+        // pages retain this revision, so their delayed cleanup cannot affect
+        // a newly selected page, including a quick A -> B -> A reversal.
+        selectionRevision &+= 1
         selected = feature
     }
     private func featuresChanged() {

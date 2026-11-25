@@ -2,6 +2,22 @@
 
 All notable changes to NetStats will be documented in this file.
 
+## v2.02 (2.0.2) — Unreleased
+
+- Check for signed updates in About and opt into background checks and downloads. The disk image includes a bilingual first-launch guide.
+- Pin the expanded screen-top card across page changes. Its collapsed handle gives way to the expanded card without an extra material strip.
+- Restore the Calendar settings window after the macOS access prompt.
+- Show used and allocated swap in the Device card and in Native and Terminal details. Explain the two values in Settings. Align the icons and labels in the Native detail rows.
+
+- Fixed stray “NetStats” tooltips on macOS 27. Selected status metrics appear in the icon’s context menu. Right-click or Control-click the icon and choose Quit NetStats to exit.
+
+- Redesigned Terminal details with a charcoal/warm-orange palette, compact monospaced sections and scrollable content; removed the synthetic Health score and made display switches apply consistently.
+- Fixed the Device card clipping disk details and I/O above the feature bar by reserving enough height for its full content.
+- Added two-finger horizontal paging across enabled features, with vertical scrolling, editing and drag interactions protected.
+- Added directional page transitions and coordinated panel resizing, with reduced-motion fades and isolated outgoing-page interactions.
+- Added automatic notch detection with a top-bar fallback for displays without a physical notch, plus manual mode selection.
+- Added system-backed launch-at-login settings and an About page with version, copyright and GitHub support links.
+
 ## v2.01 (2.0.1) — 2026-11-09
 
 - Fixed clipboard thumbnails overlapping titles and timestamps; wide and tall images now fit inside a fixed thumbnail cell.

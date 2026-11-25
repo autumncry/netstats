@@ -5,6 +5,11 @@ enum ByteFormatter {
         formatted(bytes, suffix: "B")
     }
 
+    static func swap(_ usage: SwapUsage?) -> String {
+        guard let usage else { return "—" }
+        return "\(memory(usage.usedBytes)) / \(memory(usage.totalBytes))"
+    }
+
     static func speed(_ bytesPerSecond: Double) -> String {
         formatted(UInt64(max(0, bytesPerSecond)), suffix: "B/s")
     }

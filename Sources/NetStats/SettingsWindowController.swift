@@ -12,6 +12,8 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private var reportedVisible = false
     private var hasBeenPresented = false
     private var editingMenu: NSMenu?
+    private var presentationGeneration = 0
+    private var authorizingCalendar = false
     var isPresented: Bool { window?.isVisible == true && window?.isMiniaturized == false }
 
     init(hubStore: HubStore, displaySettings: DisplaySettings, metricsStore: MetricsStore) {
@@ -21,10 +23,14 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         window.minSize = NSSize(width: 640, height: 480)
         window.isReleasedWhenClosed = false
         window.collectionBehavior = [.moveToActiveSpace]
-        window.contentViewController = NSHostingController(rootView: HubSettingsView(
-            store: hubStore, displaySettings: displaySettings, metricsStore: metricsStore))
         super.init(window: window)
         window.delegate = self
+        let calendar = hubStore.calendar
+        window.contentViewController = NSHostingController(rootView: HubSettingsView(
+            store: hubStore, displaySettings: displaySettings, metricsStore: metricsStore,
+            requestCalendarAccess: { [weak self] in
+                await self?.requestCalendarAccess(calendar)
+            }))
         displaySettings.$language.receive(on: RunLoop.main).sink { [weak window] language in
             window?.title = language == .simplifiedChinese ? "NetStats 设置" : "NetStats Settings"
         }.store(in: &subscriptions)
@@ -54,6 +60,66 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         publishVisibility()
     }
 
+    // Only the explicit Settings button owns this round trip. Routine EventKit
+    // refreshes must never present a prompt or move the user's window.
+    func requestCalendarAccess(_ calendar: CalendarStore,
+                               frontmost: () -> CalendarPromptFocus.Owner = { SettingsWindowController.focusOwner(NSWorkspace.shared.frontmostApplication) }) async {
+        guard isPresented, !authorizingCalendar, let window else { return }
+        authorizingCalendar = true
+        defer { authorizingCalendar = false }
+        let generation = presentationGeneration
+        let handoff = CalendarPromptFocus(previousPID: previousApplication?.processIdentifier, initiatingOwner: frontmost())
+        let center = NSWorkspace.shared.notificationCenter
+        let observer = center.addObserver(forName: NSWorkspace.didActivateApplicationNotification,
+                                          object: nil, queue: .main) { note in
+            guard let application = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+            MainActor.assumeIsolated {
+                handoff.didActivate(Self.focusOwner(application))
+            }
+        }
+        defer { center.removeObserver(observer) }
+        await calendar.requestAccess {
+            // EventKit may finish before the secure system dialog releases
+            // keyboard focus. WindowServer rejects activation in that interval.
+            // Check the actual foreground owner again as the dismissal settles.
+            handoff.decisionReceived()
+            let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+            var confirmedFront = false
+            while generation == presentationGeneration, !window.isMiniaturized,
+                  !NSApp.isHidden, window.isOnActiveSpace, !Task.isCancelled {
+                let owner = frontmost()
+                switch handoff.dismissalAction(front: owner) {
+                case .abandon:
+                    return
+                case .wait:
+                    confirmedFront = false
+                case .restore:
+                    let isFront = owner == .settings && window.isKeyWindow && NSApp.isActive
+                    if !isFront {
+                        window.orderFrontRegardless()
+                        NSApp.activate(ignoringOtherApps: true)
+                        window.makeKeyAndOrderFront(nil)
+                    }
+                    publishVisibility()
+                    // The secure host can hand focus back on a later run-loop turn.
+                    if isFront && confirmedFront { return }
+                    confirmedFront = isFront
+                }
+                guard ContinuousClock.now < deadline else { return }
+                do { try await Task.sleep(for: .milliseconds(80)) } catch { return }
+            }
+        }
+    }
+
+    private static func focusOwner(_ app: NSRunningApplication?) -> CalendarPromptFocus.Owner {
+        guard let app else { return .unknown }
+        if app.processIdentifier == ProcessInfo.processInfo.processIdentifier { return .settings }
+        switch app.bundleIdentifier {
+        case "com.apple.UserNotificationCenter", "com.apple.SecurityAgent": return .permissionDialog
+        default: return .other(app.processIdentifier)
+        }
+    }
+
     func stop() {
         previousApplication = nil
         window?.close()
@@ -63,6 +129,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
+        presentationGeneration += 1
         publishVisibility(false)
         // Do not steal focus back if the user already switched to another app.
         if NSApp.isActive, let previousApplication, !previousApplication.isTerminated {
@@ -70,6 +137,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         }
         previousApplication = nil
     }
+    func windowWillMiniaturize(_ notification: Notification) { presentationGeneration += 1 }
     func windowDidMiniaturize(_ notification: Notification) { publishVisibility(false) }
     func windowDidDeminiaturize(_ notification: Notification) { publishVisibility() }
 
@@ -120,5 +188,56 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     @objc private func requestSettingsFromMenu(_ sender: Any?) {
         if let onRequestShowSettings { onRequestShowSettings() }
         else { showSettings() }
+    }
+}
+
+/// Only the application that owned the interaction and the system prompt may
+/// hand the window back. A deliberate switch to another app cancels recovery.
+@MainActor
+final class CalendarPromptFocus {
+    enum Owner: Equatable { case settings, permissionDialog, other(pid_t), unknown }
+    enum DismissalAction { case wait, restore, abandon }
+    private let expectedReturns: Set<pid_t>
+    private var sawPrompt = false
+    private var decided = false
+    private var returnTarget: pid_t?
+    private var userSwitchedAway = false
+
+    init(previousPID: pid_t?, initiatingOwner: Owner = .settings) {
+        var pids = Set<pid_t>()
+        if let previousPID { pids.insert(previousPID) }
+        if case .other(let pid) = initiatingOwner { pids.insert(pid) }
+        expectedReturns = pids
+    }
+
+    func decisionReceived() { decided = true }
+
+    func didActivate(_ owner: Owner) {
+        switch owner {
+        case .permissionDialog: sawPrompt = true
+        case .other(let pid):
+            if let target = returnTarget {
+                if target != pid { userSwitchedAway = true }
+            } else if expectedReturns.contains(pid) || (sawPrompt && decided) {
+                returnTarget = pid
+            } else {
+                userSwitchedAway = true
+            }
+        case .settings, .unknown: break
+        }
+    }
+
+    func dismissalAction(front owner: Owner) -> DismissalAction {
+        guard decided, !userSwitchedAway else { return userSwitchedAway ? .abandon : .wait }
+        switch owner {
+        case .settings: return .restore
+        case .permissionDialog:
+            sawPrompt = true
+            return .wait
+        case .unknown: return .wait
+        case .other(let pid):
+            didActivate(.other(pid))
+            return userSwitchedAway ? .abandon : .restore
+        }
     }
 }
