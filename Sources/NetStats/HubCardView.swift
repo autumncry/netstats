@@ -306,7 +306,11 @@ struct HubDeviceContent: View {
         VStack(spacing: 5) {
             metric("CPU", symbol: "cpu", value: percent(s.cpuUsage), detail: deviceName, ratio: s.cpuUsage)
             metric("GPU", symbol: "rectangle.3.group", value: gpu.utilization.map(percent) ?? "—", detail: gpu.name + (gpu.utilization == nil ? (language == .simplifiedChinese ? " · 负载不可用" : " · load unavailable") : ""), ratio: gpu.utilization)
-            metric(language == .simplifiedChinese ? "内存" : "Memory", symbol: "memorychip", value: percent(s.memory.usage), detail: "\(ByteFormatter.memory(s.memory.usedBytes)) / \(ByteFormatter.memory(s.memory.totalBytes))", ratio: s.memory.usage)
+            metric(language == .simplifiedChinese ? "内存" : "Memory", symbol: "memorychip",
+                   value: percent(s.memory.usage),
+                   detail: "\(ByteFormatter.memory(s.memory.usedBytes)) / \(ByteFormatter.memory(s.memory.totalBytes))",
+                   ratio: s.memory.usage,
+                   trailingDetail: "\(LocalizedCopy.text(.swap, language: language))  \(ByteFormatter.swap(s.memory.swap))")
             metric(language == .simplifiedChinese ? "启动盘" : "Startup disk", symbol: "internaldrive", value: percent(s.disk.usage), detail: "\(ByteFormatter.memory(s.disk.usedBytes)) / \(ByteFormatter.memory(s.disk.totalBytes))", ratio: s.disk.usage)
             HStack(spacing: 4) {
                 Text(language == .simplifiedChinese ? "全部磁盘 I/O" : "All disk I/O")
@@ -315,7 +319,8 @@ struct HubDeviceContent: View {
             }.font(.system(size: 9)).monospacedDigit().foregroundStyle(.secondary)
         }
     }
-    private func metric(_ title: String, symbol: String, value: String, detail: String, ratio: Double?) -> some View {
+    private func metric(_ title: String, symbol: String, value: String, detail: String, ratio: Double?,
+                        trailingDetail: String? = nil) -> some View {
         HStack(spacing: 8) {
             Image(systemName: symbol).font(.system(size: 12)).foregroundStyle(.secondary).frame(width: 18)
             VStack(alignment: .leading, spacing: 1) {
@@ -331,6 +336,12 @@ struct HubDeviceContent: View {
                             Capsule().fill(.primary.opacity(0.07))
                                 .overlay(alignment: .leading) { Capsule().fill(Color.accentColor.opacity(0.65)).frame(width: g.size.width * min(max(ratio, 0), 1)) }
                         }.frame(width: 54, height: 3)
+                    }
+                    if let trailingDetail {
+                        Spacer(minLength: 0)
+                        Text(trailingDetail)
+                            .font(.system(size: 10, weight: .medium)).monospacedDigit()
+                            .lineLimit(1)
                     }
                 }
             }

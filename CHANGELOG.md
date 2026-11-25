@@ -7,7 +7,7 @@ All notable changes to NetStats will be documented in this file.
 - Check for signed updates in About and opt into background checks and downloads. The disk image includes a bilingual first-launch guide.
 - Pin the expanded screen-top card across page changes. Its collapsed handle gives way to the expanded card without an extra material strip.
 - Restore the Calendar settings window after the macOS access prompt.
-- Show used and allocated swap in both Native and Terminal memory details. Align the icons and labels in the Native detail rows.
+- Show used and allocated swap in the Device card and in Native and Terminal details. Explain the two values in Settings. Align the icons and labels in the Native detail rows.
 
 - Fixed stray “NetStats” tooltips on macOS 27. Selected status metrics appear in the icon’s context menu. Right-click or Control-click the icon and choose Quit NetStats to exit.
 

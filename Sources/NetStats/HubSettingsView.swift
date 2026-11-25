@@ -150,6 +150,11 @@ private struct HubSettingsContent: View {
                 Toggle(tr("显示历史趋势", "Show history"), isOn: $displaySettings.showHistory)
                 Toggle(tr("显示进程排行", "Show process rankings"), isOn: $displaySettings.showProcessRanks)
             }
+            section(LocalizedCopy.text(.swap, language: language)) {
+                Text(tr("macOS 会把暂时用不到的内存数据移到启动磁盘上的交换空间，腾出物理内存。斜线左侧是已用的交换空间，右侧是系统当前为交换分配的磁盘空间。系统会按需调整分配量。", "macOS can move less frequently used data from RAM to the startup disk to free up memory. The value before the slash shows how much swap is in use. The value after it shows how much disk space macOS has allocated for swap, which changes as needed."))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             section(StatusItemTooltipPolicy.usesNativeTooltips
                     ? tr("菜单栏指标与悬停提示", "Menu-bar metrics & hover tooltip")
                     : tr("菜单栏指标与右键概览", "Menu-bar metrics & context menu")) {

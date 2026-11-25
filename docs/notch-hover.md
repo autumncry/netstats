@@ -23,7 +23,7 @@
 
 卡片宽360pt，网络/天气208pt，暂存架232pt，设备/日历/剪切板248pt；设备页给四组指标和磁盘I/O留出完整空间及底部间距。设置使用独立的可调整大小窗口，初始内容尺寸为780×620pt。macOS26+ 使用系统玻璃，旧版使用原生模糊材质，并响应减少透明度/动态效果。不是使用设计PNG作为产品背景。
 
-网络的下载、上传使用上下两行，数值和单位同列对齐；蓝色下载、橙色上传分别对应同一量程的趋势。卡片仅保留实时速率及“启动后累计”，接口标识留在详情中。设备显示CPU、GPU型号/可用负载、内存及启动盘容量；磁盘I/O为全部块设备合计。不可用GPU读数显示“—”，不会伪装成0%。
+网络的下载、上传使用上下两行，数值和单位同列对齐；蓝色下载、橙色上传分别对应同一量程的趋势。卡片仅保留实时速率及“启动后累计”，接口标识留在详情中。设备页显示 CPU、GPU、内存和启动盘。内存行中的 `swap` 显示已用量 / 当前分配量，可在「设置 → 显示与监控」查看说明。磁盘 I/O 为全部块设备合计。不可用GPU读数显示“—”，不会伪装成0%。
 
 日历设置显式请求系统 Full Access，首版只查询日程；创建和编辑打开系统 Calendar。天气需要[配置系统快捷指令](weather-shortcut.md)，验证成功后15分钟缓存、20秒CLI超时，失败保留上次数据。
 
@@ -49,7 +49,7 @@ Codex Run动作使用同一脚本。开发bundle仅作本机临时签名，未�
 
 ## English
 
-Both entrances use one360pt adaptive glass card, shared feature switches and services. The Dock switches Network, Device, Calendar, Weather, Clipboard and Shelf by click. Network, Device and Shelf start enabled. The optional physical-notch entrance uses1-second hover,300ms exit grace and500ms valid-file drag dwell. Editing, owned popovers and dragging keep the card open. Passive navigation never activates the app; explicit text input can make the panel key but never main.
+Both entrances use one360pt adaptive glass card, shared feature switches and services. The Dock switches Network, Device, Calendar, Weather, Clipboard and Shelf by click. Network, Device and Shelf start enabled. In Device, the memory row shows used / currently allocated `swap`. Settings → Display & Monitoring explains both values. The optional physical-notch entrance uses1-second hover,300ms exit grace and500ms valid-file drag dwell. Editing, owned popovers and dragging keep the card open. Passive navigation never activates the app; explicit text input can make the panel key but never main.
 
 The pending v2.02 (2.0.2) update adds horizontal two-finger paging, Automatic/Notch/Top bar modes, system-backed launch at login, and About. Automatic uses the built-in physical notch when available and otherwise places a clickable strip below the primary screen's menu bar. Paging skips disabled features, stops at the ends, and preserves vertical scrolling and editing. These changes are not in the v2.01 download. See the [v2.02 notes](release-notes/v2.02.md).
 

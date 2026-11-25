@@ -4,7 +4,7 @@
 
 These are native SwiftUI/AppKit view renders from `TerminalMonitorRenderingTests`, with synthetic metrics, process names, the documentation-only IP address `203.0.113.42`, and example location/proxy labels. They are not live desktop screenshots and do not contain real clipboard, calendar, IP or proxy data.
 
-The source is the v2.02 pull-request working tree. The render uses `TerminalMonitorView`, `TerminalTheme`, and AppKit's `NSHostingView.cacheDisplay(in:to:)`. Both previews use the chosen charcoal/warm-orange appearance. The new app version is 2.0.2, build 31; no release artifact is implied by these previews.
+The source is the v2.02 pull-request working tree. The render uses `TerminalMonitorView`, `TerminalTheme`, and AppKit's `NSHostingView.cacheDisplay(in:to:)`. Both previews use the chosen charcoal/warm-orange appearance. The new app version is 2.0.2, build 32; no release artifact is implied by these previews.
 
 To regenerate the fixtures:
 
